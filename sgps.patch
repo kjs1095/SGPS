@@ -1,0 +1,4907 @@
+From 8124e2bec7437256506daa9dc342851994f8c605 Mon Sep 17 00:00:00 2001
+From: kjs1095 <kjs1095@gmail.com>
+Date: Wed, 6 Jul 2016 13:03:47 +0800
+Subject: [PATCH] SGPS commit
+
+---
+ .../examples/patternmatching/JobConfiguration.java |   57 +
+ .../PatternMatchingComputationStage.java           |   38 +
+ .../PatternMatchingInnerVertex.java                |  218 ++++
+ .../PatternMatchingInnerVertexValue.java           |   96 ++
+ .../patternmatching/PatternMatchingMaster.java     |  100 ++
+ .../patternmatching/PatternMatchingMessage.java    |  109 ++
+ .../patternmatching/PatternMatchingSubgraph.java   |   52 +
+ .../PatternMatchingSubgraphValue.java              |   60 ++
+ java/gps/examples/patternmatching/QueryGraph.java  |  101 ++
+ java/gps/examples/patternmatching/QueryVertex.java |   46 +
+ java/gps/graph/ArrayBackedSubgraph.java            |  734 +++++++++++++
+ java/gps/graph/InnerVertex.java                    |  229 ++++
+ java/gps/graph/InnerVertexFactory.java             |   17 +
+ java/gps/graph/Master.java                         |    8 +
+ java/gps/graph/NullEdgeInnerVertexFactory.java     |   14 +
+ java/gps/graph/NullEdgeSubgraphVertex.java         |    8 +
+ java/gps/graph/Subgraph.java                       |  105 ++
+ java/gps/graph/SubgraphFactory.java                |   11 +
+ java/gps/messages/MessageTypes.java                |    5 +-
+ .../ArrayBackedIncomingSubgraphMessageStorage.java |  452 ++++++++
+ java/gps/node/ComputationTypes.java                |   34 +
+ java/gps/node/GPSNodeRunner.java                   |  181 +++-
+ java/gps/node/SubgraphJobConfiguration.java        |   24 +
+ java/gps/node/Utils.java                           |   60 ++
+ java/gps/node/master/GPSMaster.java                |  116 +-
+ java/gps/node/worker/StaticGPSMessageSender.java   |   22 +-
+ .../worker/subgraph/AbstractSubgraphWorker.java    | 1131 ++++++++++++++++++++
+ .../subgraph/StaticSubgraphMessageSender.java      |  124 +++
+ .../worker/subgraph/StaticSubgraphWorkerImpl.java  |   81 ++
+ ...SubgraphDataAndControlMessagesParserThread.java |  285 +++++
+ 30 files changed, 4502 insertions(+), 16 deletions(-)
+ create mode 100644 java/gps/examples/patternmatching/JobConfiguration.java
+ create mode 100644 java/gps/examples/patternmatching/PatternMatchingComputationStage.java
+ create mode 100644 java/gps/examples/patternmatching/PatternMatchingInnerVertex.java
+ create mode 100644 java/gps/examples/patternmatching/PatternMatchingInnerVertexValue.java
+ create mode 100644 java/gps/examples/patternmatching/PatternMatchingMaster.java
+ create mode 100644 java/gps/examples/patternmatching/PatternMatchingMessage.java
+ create mode 100644 java/gps/examples/patternmatching/PatternMatchingSubgraph.java
+ create mode 100644 java/gps/examples/patternmatching/PatternMatchingSubgraphValue.java
+ create mode 100644 java/gps/examples/patternmatching/QueryGraph.java
+ create mode 100644 java/gps/examples/patternmatching/QueryVertex.java
+ create mode 100644 java/gps/graph/ArrayBackedSubgraph.java
+ create mode 100644 java/gps/graph/InnerVertex.java
+ create mode 100644 java/gps/graph/InnerVertexFactory.java
+ create mode 100644 java/gps/graph/NullEdgeInnerVertexFactory.java
+ create mode 100644 java/gps/graph/NullEdgeSubgraphVertex.java
+ create mode 100644 java/gps/graph/Subgraph.java
+ create mode 100644 java/gps/graph/SubgraphFactory.java
+ create mode 100644 java/gps/messages/storage/ArrayBackedIncomingSubgraphMessageStorage.java
+ create mode 100644 java/gps/node/ComputationTypes.java
+ create mode 100644 java/gps/node/SubgraphJobConfiguration.java
+ create mode 100644 java/gps/node/worker/subgraph/AbstractSubgraphWorker.java
+ create mode 100644 java/gps/node/worker/subgraph/StaticSubgraphMessageSender.java
+ create mode 100644 java/gps/node/worker/subgraph/StaticSubgraphWorkerImpl.java
+ create mode 100644 java/gps/node/worker/subgraph/SubgraphDataAndControlMessagesParserThread.java
+
+diff --git a/java/gps/examples/patternmatching/JobConfiguration.java b/java/gps/examples/patternmatching/JobConfiguration.java
+new file mode 100644
+index 0000000..91392b6
+--- /dev/null
++++ b/java/gps/examples/patternmatching/JobConfiguration.java
+@@ -0,0 +1,57 @@
++package gps.examples.patternmatching;
++
++import gps.node.SubgraphJobConfiguration;
++
++import gps.writable.NullWritable;
++
++public class JobConfiguration extends SubgraphJobConfiguration {
++	@Override
++	public Class<?> getSubgraphFactoryClass() {
++		return PatternMatchingSubgraph.PatternMatchingSubgraphFactory.class;
++	}
++
++	@Override
++	public Class<?> getSubgraphClass() {
++		return PatternMatchingSubgraph.class;
++	}
++
++	@Override
++	public Class<?> getSubgraphValueClass() {
++		return PatternMatchingSubgraphValue.class;
++	}
++
++	@Override
++	public Class<?> getSubgraphMessageValueClass() {
++		return NullWritable.class;
++	}
++
++	@Override
++	public Class<?> getVertexFactoryClass() {
++		return PatternMatchingInnerVertex.PatternMatchingInnerVertexFactory.class;
++	}
++
++	@Override 
++	public Class<?> getVertexClass() {
++		return PatternMatchingInnerVertex.class;
++	}
++
++	@Override
++	public Class<?> getVertexValueClass() {
++		return PatternMatchingInnerVertexValue.class;
++	}
++
++	@Override
++	public Class<?> getMessageValueClass() {
++		return PatternMatchingMessage.class;
++	}
++
++	@Override
++	public Class<?> getMasterClass() {
++		return PatternMatchingMaster.class;
++	}
++
++	@Override
++	public boolean hasVertexValuesInInput() {
++		return true;
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/examples/patternmatching/PatternMatchingComputationStage.java b/java/gps/examples/patternmatching/PatternMatchingComputationStage.java
+new file mode 100644
+index 0000000..fcc4ad6
+--- /dev/null
++++ b/java/gps/examples/patternmatching/PatternMatchingComputationStage.java
+@@ -0,0 +1,38 @@
++package gps.examples.patternmatching;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public class PatternMatchingComputationStage {
++    public static enum ComputationStage {
++        BATCH_INIT(0),
++        PROPAGATION_PHASE_1(1),
++        PROPAGATION_PHASE_2(2),
++        PROPAGATION_PHASE_3(3),
++        RESTART(4);
++        
++        private static Map<Integer, ComputationStage> idComputationStateMap =
++            new HashMap<Integer, ComputationStage>();
++        
++        static {
++            for (ComputationStage type : ComputationStage.values()) {
++                idComputationStateMap.put(type.id, type);
++            }
++        }
++
++        private int id;
++        
++        private ComputationStage(int id) {
++            this.id = id;
++        }
++
++        public int getId() {
++            return id;
++        }
++
++        public static ComputationStage getComputationStageFromId(int id) {
++            return idComputationStateMap.get(id);
++        }
++    }
++}
++
+diff --git a/java/gps/examples/patternmatching/PatternMatchingInnerVertex.java b/java/gps/examples/patternmatching/PatternMatchingInnerVertex.java
+new file mode 100644
+index 0000000..eb4e0e6
+--- /dev/null
++++ b/java/gps/examples/patternmatching/PatternMatchingInnerVertex.java
+@@ -0,0 +1,218 @@
++package gps.examples.patternmatching;
++
++import java.util.ArrayList;
++import java.util.Iterator;
++
++import gps.examples.patternmatching.PatternMatchingComputationStage.ComputationStage;
++
++import gps.graph.NullEdgeSubgraphVertex;
++import gps.graph.NullEdgeInnerVertexFactory;
++
++import gps.writable.IntWritable;
++
++import org.apache.commons.cli.CommandLine;
++
++import org.apache.log4j.Logger;
++
++public class PatternMatchingInnerVertex extends NullEdgeSubgraphVertex<PatternMatchingInnerVertexValue, PatternMatchingMessage, PatternMatchingSubgraphValue> {
++	
++	private static Logger logger = Logger.getLogger(PatternMatchingInnerVertex.class);
++
++	public PatternMatchingInnerVertex(CommandLine line) {	
++		
++	}
++
++	@Override
++	public void incremental_compute(Iterable<PatternMatchingMessage> incomingMessages, int superstepNo, boolean stableInPreviousSuperstep) {
++		ComputationStage computationStage = ComputationStage.getComputationStageFromId(
++                ((IntWritable) getGlobalObjectsMap().getGlobalObject(
++                    "stage").getValue()).getValue());
++		QueryGraph queryGraph;
++		PatternMatchingInnerVertexValue pmValue = getValue();
++		logger.info("stage: " + computationStage);
++		switch (computationStage) {
++			case PROPAGATION_PHASE_1:
++				queryGraph = getSubgraphValue().getQueryGraph();
++				
++				if (queryGraph.containsAttr(pmValue.getAttr())) {
++					sendMessagesOpti(getOutNeighborIds(), getTokenMsg());
++				} else {
++					voteToStable();
++				}
++				break;
++			case PROPAGATION_PHASE_2:
++				if (pmValue.getMatchFlag() == true) {
++					for (PatternMatchingMessage incomingMessage : incomingMessages) {
++						int targetID = incomingMessage.getSrcID();
++						sendMessageOpti(targetID, getAttrMsg(pmValue.getAttr()));
++					}
++					if (stableInPreviousSuperstep == true)
++						voteToStable();
++				} else {
++					voteToStable();
++				}
++				break;
++			case PROPAGATION_PHASE_3: 
++				queryGraph = getSubgraphValue().getQueryGraph();
++				if (queryGraph.evaluateLocalPattern(pmValue.getAttr(), extractAttr(incomingMessages))) {
++					if (pmValue.getMatchFlag() == false) {
++						sendMessagesOpti(getInNeighborIds(), getReEvaluateionMsg());
++					} 
++					pmValue.setMatchFlag(true);
++				} else {
++					if (pmValue.getMatchFlag() == true) {
++						sendMessagesOpti(getInNeighborIds(), getReEvaluateionMsg());
++					} 
++					pmValue.setMatchFlag(false);
++				}
++				voteToStable();
++				break;
++            default:
++                break;
++        }
++	}
++
++	@Override
++	public void compute(Iterable<PatternMatchingMessage> incomingMessages, int superstepNo) {
++		ComputationStage computationStage = ComputationStage.getComputationStageFromId(
++                ((IntWritable) getGlobalObjectsMap().getGlobalObject(
++                    "stage").getValue()).getValue());
++		QueryGraph queryGraph;
++		PatternMatchingInnerVertexValue pmValue = getValue();
++		logger.info("stage: " + computationStage);
++		switch (computationStage) {
++			case BATCH_INIT: 
++				queryGraph = getSubgraphValue().getQueryGraph();
++				if (queryGraph.containsAttr(pmValue.getAttr())) {
++					pmValue.setMatchFlag(true);
++				} 
++				break;
++			case PROPAGATION_PHASE_1:
++				queryGraph = getSubgraphValue().getQueryGraph();
++				if (queryGraph.containsAttr(pmValue.getAttr())) {
++					sendMessagesOpti(getOutNeighborIds(), getTokenMsg());
++				} else {
++					voteToStable();
++				}
++				break;
++			case PROPAGATION_PHASE_2:
++				if (pmValue.getMatchFlag() == true) {
++					for (PatternMatchingMessage incomingMessage : incomingMessages) {
++						int targetID = incomingMessage.getSrcID();
++						sendMessageOpti(targetID, getAttrMsg(pmValue.getAttr()));
++					}
++					voteToStableIfUnStablePreviousSuperstep();
++				} else {
++					voteToStable();
++				}
++				break;
++			case PROPAGATION_PHASE_3: 
++				queryGraph = getSubgraphValue().getQueryGraph();
++				if (queryGraph.evaluateLocalPattern(pmValue.getAttr(), extractAttr(incomingMessages))) {
++					if (pmValue.getMatchFlag() == false) {
++						sendMessagesOpti(getInNeighborIds(), getReEvaluateionMsg());
++					} else {
++						//voteToStable();
++					}
++					pmValue.setMatchFlag(true);
++				} else {
++					if (pmValue.getMatchFlag() == true) {
++						sendMessagesOpti(getInNeighborIds(), getReEvaluateionMsg());
++					} else {
++						//voteToStable();
++					}
++					pmValue.setMatchFlag(false);
++				}
++				voteToStable();
++				break;
++            default:
++                break;
++        }
++        
++	}
++
++	@Override
++	public void converge_checking(Iterable<PatternMatchingMessage> incomingMessages, int superstepNo) {
++
++		QueryGraph queryGraph = getSubgraphValue().getQueryGraph();
++		PatternMatchingInnerVertexValue pmValue = getValue();
++		
++		boolean converge = true;
++		if (queryGraph.containsAttr(pmValue.getAttr())) {
++			if (incomingMessages.iterator().hasNext() == false)
++				voteToStable();
++			for (PatternMatchingMessage incomingMessage : incomingMessages) {
++				if (incomingMessage.getTypeCode() == 0)	{ // token 
++					int targetID = incomingMessage.getSrcID();
++					if (pmValue.getMatchFlag())
++						sendMessageOpti(targetID, getAttrMsg(pmValue.getAttr()));
++				} else if (incomingMessage.getTypeCode() == 2) { // get response
++					if (queryGraph.checkQueryEdgeExist(pmValue.getAttr(), incomingMessage.getMsg())) {
++                        boolean addEdge = containsEdge(incomingMessage.getSrcID(), getOutNeighborIds());
++                        if (pmValue.getMatchFlag() && addEdge == false) {
++                            converge = false;
++                            sendMessageOpti(getId(), getReEvaluateionMsg());
++                        } else if (pmValue.getMatchFlag() == false && addEdge == true) {
++                            converge = false;
++                            sendMessageOpti(getId(), getReEvaluateionMsg());
++                        } else {
++                        }
++                    } else {
++                    }
++					voteToStable();
++				} 
++			}
++		} else {
++			voteToStable();
++		}
++		if (!converge) 
++			announceRecomputeSingal();
++	}
++
++	public boolean containsEdge(int targetVId, int[] neiArray) {
++        logger.info("nei size: " + neiArray.length);
++        for (int i = 0; i < neiArray.length; ++i)
++            if (neiArray[i] == targetVId)
++                return true;
++        return false;
++    }
++
++	@Override
++	public void doWorkAfterUpdateTopology(boolean add, int dstVId) {
++		QueryGraph queryGraph = getSubgraphValue().getQueryGraph();
++		PatternMatchingInnerVertexValue pmValue = getValue();
++		if (queryGraph.containsAttr(pmValue.getAttr())) {
++			sendMessageOpti(dstVId, getTokenMsg());
++		}
++	}
++
++	public PatternMatchingMessage getTokenMsg() {
++		return new PatternMatchingMessage(0, getId(), "");
++	}
++
++	public PatternMatchingMessage getReEvaluateionMsg() {
++		return new PatternMatchingMessage(1, getId(), "");
++	}
++
++	public PatternMatchingMessage getAttrMsg(String attr) {
++		return new PatternMatchingMessage(2, getId(), attr);
++	}
++
++	public String[] extractAttr(Iterable<PatternMatchingMessage> incomingMessages) {
++		ArrayList<String> dynamicList = new ArrayList<String>();
++		for (PatternMatchingMessage incomingMessage: incomingMessages) 
++			dynamicList.add(incomingMessage.getMsg());
++		String[] list = new String[dynamicList.size()];
++		dynamicList.toArray(list);
++		return list;
++	}
++
++	public static class PatternMatchingInnerVertexFactory
++            extends NullEdgeInnerVertexFactory<PatternMatchingInnerVertexValue, PatternMatchingMessage, PatternMatchingSubgraphValue> {
++
++            @Override
++            public NullEdgeSubgraphVertex<PatternMatchingInnerVertexValue, PatternMatchingMessage, PatternMatchingSubgraphValue> newInstance(CommandLine commandLine) {
++                return new PatternMatchingInnerVertex(commandLine);
++            }
++    }
++}
+diff --git a/java/gps/examples/patternmatching/PatternMatchingInnerVertexValue.java b/java/gps/examples/patternmatching/PatternMatchingInnerVertexValue.java
+new file mode 100644
+index 0000000..b75dc8c
+--- /dev/null
++++ b/java/gps/examples/patternmatching/PatternMatchingInnerVertexValue.java
+@@ -0,0 +1,96 @@
++package gps.examples.patternmatching;
++
++import org.apache.mina.core.buffer.IoBuffer;
++
++import gps.writable.MinaWritable;
++
++public class PatternMatchingInnerVertexValue extends MinaWritable {
++	
++	private String attribute;
++	private boolean isMatch;
++	private int hops;
++
++	public PatternMatchingInnerVertexValue() {
++		this.attribute = null;
++		this.isMatch = false;
++		this.hops = 0;
++	}
++
++	public PatternMatchingInnerVertexValue(String attribute, boolean isMatch) {
++		this.attribute = attribute;
++		this.isMatch = isMatch;
++		this.hops = 0;
++	}
++
++	public void setHops(int hops) {
++		this.hops = hops;
++	}
++
++	public int getHops() {
++		return hops;
++	}
++
++	public void setMatchFlag(boolean newValue) {
++		this.isMatch = newValue;
++	}
++
++	public void setAttr(String attribute) {
++		this.attribute = attribute;
++	}
++
++	public boolean getMatchFlag() {
++		return this.isMatch;
++	}
++
++	public String getAttr() {
++		return this.attribute;
++	}
++
++
++	@Override
++	public int numBytes() {
++		return attribute.getBytes().length + 4;
++	}
++
++	@Override
++	public void write(IoBuffer ioBuffer) {
++		ioBuffer.putInt(attribute.getBytes().length);
++		ioBuffer.put(attribute.getBytes());
++	}
++
++	@Override
++	public void read(IoBuffer ioBuffer) {
++		int length = ioBuffer.getInt();
++		byte[] srcArray = new byte[length];
++		for (int i = 0; i < length; ++i) {
++			srcArray[i] = ioBuffer.get();
++		}
++		this.attribute = new String(srcArray);
++	}
++
++	@Override
++	public int read(IoBuffer ioBuffer, byte[] byteArray, int index) {
++		int length = ioBuffer.getInt();
++		writeIntegerToByteArray(byteArray, length, index);
++		ioBuffer.get(byteArray, index +4, length);
++		return 4 + length;
++	}
++
++	@Override
++	public int read(byte[] byteArray, int index) {
++		int length = readIntegerFromByteArray(byteArray, index);
++		attribute = new String(byteArray, index +4, length);
++
++		return 4 + length;
++	}
++
++	@Override
++	public void read(String strValue) {
++		attribute = strValue;
++	}
++
++	@Override 
++	public String toString() {
++		return String.valueOf(isMatch);
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/examples/patternmatching/PatternMatchingMaster.java b/java/gps/examples/patternmatching/PatternMatchingMaster.java
+new file mode 100644
+index 0000000..1885a8d
+--- /dev/null
++++ b/java/gps/examples/patternmatching/PatternMatchingMaster.java
+@@ -0,0 +1,100 @@
++package gps.examples.patternmatching;
++
++import gps.node.GPSNodeRunner;
++import org.apache.commons.cli.CommandLine;
++
++import gps.examples.patternmatching.PatternMatchingComputationStage.ComputationStage;
++
++import gps.globalobjects.IntOverwriteGlobalObject;
++
++import gps.graph.Master;
++import gps.writable.IntWritable;
++
++import org.apache.log4j.Logger;
++
++
++public class PatternMatchingMaster extends Master {
++
++    private static Logger logger = Logger.getLogger(PatternMatchingMaster.class);
++
++    protected boolean batchMode;
++
++    public PatternMatchingMaster(CommandLine commandLine) {
++        batchMode = commandLine.hasOption(GPSNodeRunner.IS_BATCH_MODE_OPT_NAME) ? 
++            Boolean.parseBoolean(commandLine.getOptionValue(GPSNodeRunner.IS_BATCH_MODE_OPT_NAME)) : true;
++    }
++
++    @Override 
++    public void compute(int superstepNo) {
++        if (superstepNo == 1) {
++            moveToNextComputationStage(ComputationStage.BATCH_INIT);
++            
++            logger.info("stage: " + getGlobalObjectsMap().getGlobalObject("stage")); 
++            return;                     
++        }   
++
++        ComputationStage computationStage = ComputationStage.getComputationStageFromId(
++            ((IntWritable) getGlobalObjectsMap().getGlobalObject(
++            "stage").getValue()).getValue());
++
++        switch (computationStage) {
++            case RESTART:
++                moveToNextComputationStage(ComputationStage.BATCH_INIT);
++                break;
++            case BATCH_INIT: 
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_1);
++                break;
++            case PROPAGATION_PHASE_1:
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_2);
++                break;
++            case PROPAGATION_PHASE_2:
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_3);
++                break;
++            case PROPAGATION_PHASE_3:
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_1);
++                break;
++            default:
++                // do nothing
++                break;
++        }
++    }
++
++    @Override
++    public void incremental_compute(int superstepNo) {
++        ComputationStage computationStage = ComputationStage.getComputationStageFromId(
++            ((IntWritable) getGlobalObjectsMap().getGlobalObject(
++            "stage").getValue()).getValue());
++
++        switch (computationStage) {
++            case RESTART:
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_1);
++                break;
++            case PROPAGATION_PHASE_1:
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_2);
++                break;
++            case PROPAGATION_PHASE_2:
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_3);
++                break;
++            case PROPAGATION_PHASE_3:
++                moveToNextComputationStage(ComputationStage.PROPAGATION_PHASE_1);
++                break;
++            default:
++                // do nothing
++                break;
++        }
++    }
++
++    @Override 
++    public void setup() {
++        if (batchMode)
++            moveToNextComputationStage(ComputationStage.RESTART);
++        else
++            moveToNextComputationStage(ComputationStage.RESTART);
++    }
++    
++    protected void moveToNextComputationStage(ComputationStage compStage) { 
++        getGlobalObjectsMap().putOrUpdateGlobalObject("stage", new IntOverwriteGlobalObject(compStage.getId()));
++    }
++}
++
++
+diff --git a/java/gps/examples/patternmatching/PatternMatchingMessage.java b/java/gps/examples/patternmatching/PatternMatchingMessage.java
+new file mode 100644
+index 0000000..e9c4b9b
+--- /dev/null
++++ b/java/gps/examples/patternmatching/PatternMatchingMessage.java
+@@ -0,0 +1,109 @@
++package gps.examples.patternmatching;
++
++import org.apache.mina.core.buffer.IoBuffer;
++
++import gps.writable.MinaWritable;
++
++import org.apache.log4j.Logger;
++
++public class PatternMatchingMessage extends MinaWritable {
++
++	private static Logger logger = Logger.getLogger(PatternMatchingMessage.class);
++
++	private int typeCode;	
++	private int srcID;
++	private String msg;
++
++	public PatternMatchingMessage() {
++		this.typeCode = -1;
++		this.srcID = -1;
++		this.msg = null;
++	}
++
++	public PatternMatchingMessage(int typeCode, int srcID, String msg) {
++		this.typeCode = typeCode;
++		this.srcID = srcID;
++		this.msg = new String(msg);
++	}
++
++	public int getSrcID() {
++		return srcID;
++	}
++
++	public int getTypeCode() {
++		return typeCode;
++	}
++
++	public String getMsg() {
++		return msg;
++	}
++
++	@Override
++	public int numBytes() {
++		if (msg == null)
++			return 4 + 4 + 4 + 0;
++		else
++			return 4 + 4 + 4 + msg.getBytes().length;
++	}
++
++	@Override
++	public void write(IoBuffer ioBuffer) {
++		ioBuffer.putInt(typeCode);
++		ioBuffer.putInt(srcID);
++		ioBuffer.putInt(msg.getBytes().length);
++		ioBuffer.put(msg.getBytes());
++	}
++
++	@Override
++	public void read(String string) {
++		throw new UnsupportedOperationException("This method should not be called because GSMessages " +
++			"should not be parsed from a file.");
++	}
++
++	@Override
++	public void read(IoBuffer ioBuffer) {
++		this.typeCode = ioBuffer.getInt();
++		this.srcID = ioBuffer.getInt();
++		int length = ioBuffer.getInt();
++		byte[] srcArray = new byte[length];
++		for (int i = 0; i < length; ++i) {
++			srcArray[i] = ioBuffer.get();
++		}
++		this.msg = new String(srcArray);
++	}
++
++	@Override
++	public int read(IoBuffer ioBuffer, byte[] byteArray, int index) {
++		// ArrayBackedStorage, copy data from ioBuffer to byteArray
++		this.typeCode = ioBuffer.getInt();
++		writeIntegerToByteArray(byteArray, typeCode, index);
++		this.srcID = ioBuffer.getInt();
++		writeIntegerToByteArray(byteArray, srcID, index +4);
++		int length = ioBuffer.getInt();
++		logger.info("typeCode : " + typeCode + ", src : " + srcID + ", data len : " + length);
++		writeIntegerToByteArray(byteArray, length, index +8);
++		ioBuffer.get(byteArray, index +12, length);
++		return 4 + 4 + 4 + length;
++	}
++
++	@Override
++	public int read(byte[] byteArray, int index) {
++		// MinaWritalbeIterable, for iterable, read data from byte array to variable
++		this.typeCode = readIntegerFromByteArray(byteArray, index);
++		this.srcID = readIntegerFromByteArray(byteArray, index +4);
++		int length = readIntegerFromByteArray(byteArray, index +8);
++		msg = new String(byteArray, index +12, length);
++
++		return 4 + 4 + 4 + length;
++	}
++
++	@Override
++	public void combine(byte[] messageQueue, byte[] tmpArray) {
++		// Nothing to do. This writable is not combinable.
++	}
++
++	@Override
++	public String toString() {
++		return msg;
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/examples/patternmatching/PatternMatchingSubgraph.java b/java/gps/examples/patternmatching/PatternMatchingSubgraph.java
+new file mode 100644
+index 0000000..b2b7992
+--- /dev/null
++++ b/java/gps/examples/patternmatching/PatternMatchingSubgraph.java
+@@ -0,0 +1,52 @@
++package gps.examples.patternmatching;
++
++import gps.node.GPSNodeRunner;
++
++import org.apache.commons.cli.CommandLine;
++
++import gps.graph.SubgraphFactory;
++import gps.graph.Subgraph;
++
++import gps.writable.NullWritable;
++
++
++public class PatternMatchingSubgraph extends Subgraph<PatternMatchingInnerVertexValue, NullWritable, PatternMatchingMessage, PatternMatchingSubgraphValue, NullWritable> {
++
++	public PatternMatchingSubgraph(CommandLine line) {	
++		String otherOptStr = line.getOptionValue(GPSNodeRunner.OTHER_OPTS_OPT_NAME);
++		
++		if (otherOptStr != null) {
++			String[] split = otherOptStr.split("###");
++
++			for (int index = 0; index < split.length; ) {
++				String flag = split[index++];
++				String value = split[index++];
++				if ("-query".equals(flag)) {
++					getValue().setQueryGraph(value);
++				} else if ("-fuzzy".equals(flag)) {
++					getValue().getQueryGraph().setFuzzy(Boolean.parseBoolean(value));
++				}
++			}
++		}
++	}
++
++	@Override
++	public void compute_before_vertex(Iterable<NullWritable> incomingMessages, int superstepNo) {
++		
++	}
++
++
++	@Override
++	public void compute_after_vertex(Iterable<NullWritable> incomingMessages, int superstepNo) {
++		
++	}
++
++	public static class PatternMatchingSubgraphFactory
++            extends SubgraphFactory<PatternMatchingInnerVertexValue, NullWritable, PatternMatchingMessage, PatternMatchingSubgraphValue, NullWritable> {
++
++            @Override
++            public Subgraph<PatternMatchingInnerVertexValue, NullWritable, PatternMatchingMessage, PatternMatchingSubgraphValue, NullWritable> newInstance(CommandLine commandLine) {
++                return new PatternMatchingSubgraph(commandLine);
++            }
++    }
++}
+\ No newline at end of file
+diff --git a/java/gps/examples/patternmatching/PatternMatchingSubgraphValue.java b/java/gps/examples/patternmatching/PatternMatchingSubgraphValue.java
+new file mode 100644
+index 0000000..cb983d3
+--- /dev/null
++++ b/java/gps/examples/patternmatching/PatternMatchingSubgraphValue.java
+@@ -0,0 +1,60 @@
++package gps.examples.patternmatching;
++
++import org.apache.mina.core.buffer.IoBuffer;
++
++import gps.writable.MinaWritable;
++
++public class PatternMatchingSubgraphValue extends MinaWritable {
++	private QueryGraph queryGraph;
++
++	public PatternMatchingSubgraphValue(QueryGraph queryGraph) {
++		this.queryGraph = queryGraph;
++	}
++
++	public PatternMatchingSubgraphValue() {
++		this.queryGraph = null;
++	}
++
++	public void setQueryGraph(String encodeValue) {
++		this.queryGraph = new QueryGraph(encodeValue, false);
++	}
++
++	public QueryGraph getQueryGraph() {
++		return queryGraph;
++	}
++
++	@Override
++	public int numBytes() {
++		return 0;
++	}
++
++	@Override
++	public void write(IoBuffer ioBuffer) {
++
++	}
++
++	@Override
++	public void read(IoBuffer ioBuffer) {
++
++	}
++
++	@Override
++	public int read(byte[] byteArray, int index) {
++		return 0;
++	}
++
++	@Override
++	public int read(IoBuffer ioBuffer, byte[] byteArray, int index) {
++		return 0;
++	}
++
++	@Override 
++	public void combine(byte[] messqgeQueue, byte[] tmpArray) {
++
++	}
++
++	@Override 
++	public String toString() {
++		return queryGraph.toString();
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/examples/patternmatching/QueryGraph.java b/java/gps/examples/patternmatching/QueryGraph.java
+new file mode 100644
+index 0000000..a5f5b40
+--- /dev/null
++++ b/java/gps/examples/patternmatching/QueryGraph.java
+@@ -0,0 +1,101 @@
++package gps.examples.patternmatching;
++
++public class QueryGraph {
++
++    QueryVertex[] queryVertexArray;
++    boolean fuzzy;
++
++    public QueryGraph() {
++        queryVertexArray = null;
++    }
++
++    public QueryGraph(String queryPatternStr, boolean fuzzy) {
++        parseQueryPatternStr(queryPatternStr);
++        this.fuzzy = fuzzy;
++    }
++
++    public void setFuzzy(boolean fuzzy) {
++        this.fuzzy = fuzzy;
++    }
++
++    public String getQueryPattern () {
++        return "Not implement yet QQ";
++    }
++
++    private void parseQueryPatternStr(String queryPatternStr) {
++        String[] queryVertexStrArray = queryPatternStr.split("@");
++        queryVertexArray = new QueryVertex[queryVertexStrArray.length];
++        for (int i = 0; i < queryVertexArray.length; ++i)
++            queryVertexArray[i] = new QueryVertex(queryVertexStrArray[i]);
++    }
++
++
++    public boolean containsAttr(String attr) {
++        String qAttr = getQAttr(attr);
++        
++        for (int i = 0; i < queryVertexArray.length; ++i)
++            if (queryVertexArray[i].getAttr().compareTo(qAttr) == 0)
++                return true;
++        return false;
++    }
++
++    public boolean containsEdge(String attrSrc, String attrDst) {
++        if (containsAttr(attrSrc) == false)
++            return false;
++        else if (containsAttr(attrDst) == false)
++            return false;
++        else {
++            int srcIndex = getIndex(getQAttr(attrSrc));
++            int dstIndex = getIndex(getQAttr(attrDst));
++
++            for (int outNeiOfSrc : queryVertexArray[srcIndex].getOutNeiArray())
++                if (dstIndex == outNeiOfSrc)
++                    return true;
++            return false;
++        }
++    }
++
++    public boolean checkQueryEdgeExist(String attr, String dstAttr) {
++        int srcIndex = getIndex(getQAttr(attr));
++        String qDstAttr = getQAttr(dstAttr);
++        for (int outNeiID : queryVertexArray[srcIndex].getOutNeiArray()) {
++            if (outNeiID == -1)
++                return false;
++            if (queryVertexArray[outNeiID].getAttr().compareTo(qDstAttr) == 0)
++                return true;
++        }
++        return false;
++    }
++
++    public boolean evaluateLocalPattern(String attr, String[] neiAttrArray) {
++        int srcIndex = getIndex(getQAttr(attr));
++        for (int outNeiID : queryVertexArray[srcIndex].getOutNeiArray()) {
++            boolean find = false;
++            if (outNeiID == -1)
++                return true;
++            for (int i = 0; i < neiAttrArray.length && !find; ++i)
++                if (queryVertexArray[outNeiID].getAttr().compareTo(getQAttr(neiAttrArray[i])) == 0)
++                    find = true;
++            if (!find)
++                return false;
++        }
++        return true;
++
++    }
++
++    private int getIndex(String attr) {
++         for (int i = 0; i < queryVertexArray.length; ++i)
++            if (queryVertexArray[i].getAttr().compareTo(attr) == 0)
++               return i;
++        return -1;
++    }
++
++    private String getQAttr(String attr) {
++        if (fuzzy == false)
++            return attr;
++        else
++            return  attr.substring(0, 1) + "*";
++    }
++}
++
++
+diff --git a/java/gps/examples/patternmatching/QueryVertex.java b/java/gps/examples/patternmatching/QueryVertex.java
+new file mode 100644
+index 0000000..46ec776
+--- /dev/null
++++ b/java/gps/examples/patternmatching/QueryVertex.java
+@@ -0,0 +1,46 @@
++package gps.examples.patternmatching;
++
++import java.util.HashSet;
++
++public class QueryVertex {
++	int qVId;
++	String attr;
++	int[] outNeiArray;
++
++	public QueryVertex() {
++		qVId = -1;
++		attr = null;
++		outNeiArray = null;
++	}
++
++	public QueryVertex(String queryVertexPattern) {
++		parseQueryVertexPattern(queryVertexPattern);
++	}
++
++	public int getVId() {
++		return qVId;
++	}
++
++	public String getAttr() {
++		return attr;
++	}
++
++	public int[] getOutNeiArray() {
++		return outNeiArray;
++	}
++
++	private void parseQueryVertexPattern(String queryVertexPattern) {
++		String[] vertexInfo = queryVertexPattern.split(":");
++
++		qVId = Integer.parseInt(vertexInfo[0]);
++		attr = vertexInfo[1];
++		parseNeiSet(vertexInfo[2]);
++	}
++
++	private void parseNeiSet(String neiInfoStr) {
++		String[] neiIDStrArray = neiInfoStr.split(",");
++		outNeiArray = new int[neiIDStrArray.length];
++		for (int i = 0; i < outNeiArray.length; ++i)
++			outNeiArray[i] = Integer.parseInt(neiIDStrArray[i]);
++	}
++}
+diff --git a/java/gps/graph/ArrayBackedSubgraph.java b/java/gps/graph/ArrayBackedSubgraph.java
+new file mode 100644
+index 0000000..6c40f47
+--- /dev/null
++++ b/java/gps/graph/ArrayBackedSubgraph.java
+@@ -0,0 +1,734 @@
++package gps.graph;
++
++import gps.writable.MinaWritable;
++import gps.writable.NullWritable;
++
++import java.lang.reflect.Array;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Map;
++
++import org.apache.log4j.Logger;
++import org.apache.mina.core.buffer.IoBuffer;
++
++import cern.colt.map.OpenIntIntHashMap;
++
++/**
++* Modify from ArrayBackedGraph
++*/
++
++public class ArrayBackedSubgraph<V extends MinaWritable, E extends MinaWritable, 
++	SV extends MinaWritable> implements Graph<V, E> {
++
++	private static Logger logger = Logger.getLogger(ArrayBackedSubgraph.class);
++
++	private int[][] inNeighborIds = null;
++	private int[] inNeighborIdIndices = null;
++	private int[][] outNeighborIds = null;
++	private int[] outNeighborIdIndices = null;
++	private int numInEdges = 0;
++	private int numOutEdges = 0;
++	private byte[][][] inEdgeValueBytes;
++	private byte[][][] outEdgeValueBytes;
++
++	private int[][] neighborIds = null;
++	private int[] neighborIdIndices = null;
++	private V[] valuesArray = null;
++	private boolean[] isActiveArray = null;
++	private boolean[] isStableArray = null;
++	private int[] originalIdsArray = null;
++	private final int numMachines;
++	private int maxLocalId = -1;
++	private final int localMachineId;
++	private int numEdges = 0;
++	private Class<V> vertexClass;
++	private Map<Integer, Integer> exceptionNeighborSizes = new HashMap<Integer, Integer>();
++	private final InnerVertex vertex;
++	private byte[][][] edgeValueBytes;
++	public EdgeIterable<E> outgoingEdges = new EdgeIterable<E>();
++	private boolean[] isUpdatedArray = null;
++
++	private final E representativeEdgeValue;
++
++	private boolean isActive;
++	private SV subgraphValue;
++	private boolean isStable;
++
++	public ArrayBackedSubgraph(int localMachineId, int numMachines, Class<V> vertexClass,
++		InnerVertex vertex, Class<E> representativeEdgeValueClass, Class<SV> subgraphClass) 
++		throws InstantiationException, IllegalAccessException {
++		this.localMachineId = localMachineId;
++		this.numMachines = numMachines;
++		this.representativeEdgeValue = representativeEdgeValueClass.newInstance();
++		this.neighborIds = new int[1][];
++		this.neighborIdIndices = new int[1];
++		this.originalIdsArray = new int[1];
++		this.edgeValueBytes = !(representativeEdgeValue instanceof NullWritable) ? new byte[1][][] : null;
++		this.vertexClass = vertexClass;
++		this.valuesArray = (V[]) Array.newInstance(vertexClass, 1);
++		this.isActiveArray = new boolean[1];
++		this.isStableArray = new boolean[1];
++		this.isUpdatedArray = new boolean[1];
++		this.inNeighborIds = new int[1][];
++		this.inNeighborIdIndices = new int[1];
++		this.inEdgeValueBytes = !(representativeEdgeValue instanceof NullWritable) ? new byte[1][][] : null;
++		this.outNeighborIds = new int[1][];
++		this.outNeighborIdIndices = new int[1];
++		this.outEdgeValueBytes = !(representativeEdgeValue instanceof NullWritable) ? new byte[1][][] : null;
++
++		this.vertex = vertex;
++		this.outgoingEdges.edgeIterator.setRepresentativeWritableInstance(
++			representativeEdgeValueClass.newInstance());
++		this.subgraphValue = subgraphClass.newInstance();
++		this.isActive = true;
++	}
++
++	public boolean isUpdated(int localId) {
++        return isUpdatedArray[localId];
++    }
++
++    public void setIsUpdated(int localId, boolean isUpdatedValue) {
++        isUpdatedArray[localId] = isUpdatedValue;
++    }
++
++	public int[] getInnerVertexIds() {
++		int numOfInnerVertex = size();
++		int[] innerVertexIds = new int[numOfInnerVertex];
++		for (int localId = 0; localId < numOfInnerVertex; ++ localId) {
++			innerVertexIds[localId] = getGlobalId(localId);
++		}
++		return innerVertexIds;
++	}
++
++	public void setValueOfSubgraph(SV value) {
++		subgraphValue = value;
++	}
++
++	public SV getValueOfSubgraph() {
++		return subgraphValue;
++	}
++
++	public void setIsActiveOfSubgraph(boolean isActive) {
++		this.isActive = isActive;
++	}
++
++	public boolean isActiveOfSubgraph() {
++		return isActive;
++	}
++
++	public void setIsStableOfSubgraph(boolean isStable) {
++		this.isStable = isStable;
++	}
++
++	public boolean isStableOfSubgraph() {
++		return isStable;
++	}
++
++	public void removeOutEdge(int id, int neighborId) {
++		if (id == neighborId)
++			return ;
++
++		if (contains(id) == false)
++			return;
++		int localId = getLocalId(id);
++
++		int outNeighborIdIndex = outNeighborIdIndices[localId];
++		int[] outNeighbors = outNeighborIds[localId];
++
++		boolean edgeExisted = false;
++		for (int index = 0; index < outNeighborIdIndex; ++index) {
++			if (outNeighbors[index] == neighborId) {
++				outNeighbors[index] = outNeighbors[outNeighborIdIndex -1];
++				edgeExisted = true;
++				break;
++			}
++		}
++		if (edgeExisted) {
++			outNeighborIdIndices[localId] -= 1;
++			numOutEdges--;
++		}
++	}
++
++	public void removeInEdge(int id, int neighborId) {
++		if (id == neighborId)
++			return ;
++
++		if (contains(id) == false)
++			return;
++		int localId = getLocalId(id);
++
++		int inNeighborIdIndex = inNeighborIdIndices[localId];
++		int[] inNeighbors = inNeighborIds[localId];
++
++		boolean edgeExisted = false;
++		for (int index = 0; index < inNeighborIdIndex; ++index) {
++			if (inNeighbors[index] == neighborId) {
++				inNeighbors[index] = inNeighbors[inNeighborIdIndex -1];
++				edgeExisted = true;
++				break;
++			}
++		}
++		if (edgeExisted) {
++			inNeighborIdIndices[localId] -= 1;
++			numInEdges--;
++		}
++	}
++
++	public void removeEdge(int id, int neighborId) {
++		if (id == neighborId) {
++			return;
++		}
++
++		if (contains(id) == false)
++			return;
++		int localId = getLocalId(id);
++		
++		// TODO remote edge
++		int neighborIdIndex = neighborIdIndices[localId];
++		int[] neighbors = neighborIds[localId];
++
++		boolean edgeExisted = false;
++		for (int index = 0; index < neighborIdIndex; ++index) {
++			if (neighbors[index] == neighborId) {
++				neighbors[index] = neighbors[neighborIdIndex -1];
++				edgeExisted = true;
++				break;
++			}
++		}
++		if (edgeExisted) {
++			neighborIdIndices[localId] -= 1;
++			numEdges--;
++		}
++	}
++
++	public int getLocalId(int id) {
++		return (id - localMachineId) / numMachines;
++	}
++
++	public int getGlobalId(int id) {
++		return (id * numMachines) + localMachineId;
++	}
++
++	@Override
++	public int[] getNeighborIdsOfLocalId(int localId) {
++		return neighborIds[localId];
++	}
++
++	public int[] getInNeighborIdsOfLocalId(int localId) {
++		// kjs
++		int[] actualInNeighbors = new int[inNeighborIdIndices[localId]];
++		System.arraycopy(inNeighborIds[localId], 0, actualInNeighbors, 0, inNeighborIdIndices[localId]);
++		return actualInNeighbors;
++	}
++
++	public int[] getOutNeighborIdsOfLocalId(int localId) {
++		// kjs
++		int[] actualOutNeighbors = new int[outNeighborIdIndices[localId]];
++		System.arraycopy(outNeighborIds[localId], 0, actualOutNeighbors, 0, outNeighborIdIndices[localId]);
++		return actualOutNeighbors;
++	}
++
++	@Override
++	public Iterable<Edge<E>> getOutgoingEdgesOfLocalId(int localId) {
++		outgoingEdges.edgeIterator.init(edgeValueBytes[localId], getNeighborIdsOfLocalId(localId),
++			neighborIdIndices[localId]);
++		return outgoingEdges;
++	}
++
++	@Override
++	public void setValueOfLocalId(int localId, V value) {
++		// TODO(semih): This is likely to throw an Exception because
++		// the array size is likely to not be of size localId
++		valuesArray[localId] = value;
++	}
++
++	@Override
++	public V getValueOfLocalId(int localId) {
++		return valuesArray[localId];
++	}
++
++	@Override
++	public void setIsActiveOfLocalId(int localId, boolean isActive) {
++		isActiveArray[localId] = isActive;
++	}
++
++	@Override
++	public boolean isActiveOfLocalId(int localId) {
++		return isActiveArray[localId];
++	}
++
++	public void setIsStableOfLocalId(int localId, boolean isStable) {
++		isStableArray[localId] = isStable;
++	}
++
++	public boolean isStableOfLocalId(int localId) {
++		return isStableArray[localId];
++	}
++
++	public void addInEdge(int id, int neighborId) {
++		addInEdge(id, neighborId, null, null);
++	}
++	
++	public void addInEdge(int id, int neighborId, IoBuffer ioBuffer) {
++		addInEdge(id, neighborId, ioBuffer, null);
++	}
++
++	public void addInEdge(int id, int neighborId, E edgeValue) {
++		addInEdge(id, neighborId, null, edgeValue);
++	}
++
++	private void addInEdge(int id, int neighborId, IoBuffer ioBuffer, E edgeValueObject) {
++		if (id == neighborId) {
++			if (edgeValueObject != null || !(representativeEdgeValue instanceof NullWritable)) {
++				representativeEdgeValue.read(ioBuffer, new byte[representativeEdgeValue.numBytes()], 0);
++			}
++			return;
++		}
++		int localId = getLocalId(id);
++		int inNeighborIdIndex = inNeighborIdIndices[localId];
++		int[] inNeighbors = inNeighborIds[localId];
++		byte[][] inEdgeValues = null;
++		if (edgeValueObject != null || !(representativeEdgeValue instanceof NullWritable)) {
++			inEdgeValues = inEdgeValueBytes[localId];
++		}
++		if (inNeighborIdIndex == inNeighbors.length) {
++			int newInNeighborIdsArrayLength =
++				Math.max(1, inNeighborIdIndex > 1000 ? (int) (inNeighborIdIndex * 1.2) : inNeighborIdIndex * 2);
++			int[] newInNeighborIds = new int[newInNeighborIdsArrayLength];
++			System.arraycopy(inNeighbors, 0, newInNeighborIds, 0, inNeighbors.length);
++			for (int i = 0; i < inNeighborIdIndex; ++i) {
++				newInNeighborIds[i] = inNeighbors[i];
++			}
++			inNeighborIds[localId] = newInNeighborIds;
++			inNeighbors = newInNeighborIds;
++			if (inEdgeValues != null) {
++				byte[][] newInEdgeValues = new byte[newInNeighborIdsArrayLength][];
++				System.arraycopy(inEdgeValues, 0, newInEdgeValues, 0, inEdgeValues.length);
++				inEdgeValueBytes[localId] = newInEdgeValues;
++				inEdgeValues = newInEdgeValues;
++			}
++		}
++		inNeighbors[inNeighborIdIndex] = neighborId;
++		inNeighborIdIndices[localId] += 1;
++		if (inEdgeValues != null) {
++			byte[] newInEdgeValue;
++			if (edgeValueObject != null) {
++				newInEdgeValue = edgeValueObject.getByteArray();
++			} else {
++				newInEdgeValue = new byte[representativeEdgeValue.numBytes()];
++				representativeEdgeValue.read(ioBuffer, newInEdgeValue, 0);
++			}
++			inEdgeValues[inNeighborIdIndex] = newInEdgeValue;
++		}
++		numInEdges++;
++	}
++
++	public void addOutEdge(int id, int neighborId) {
++		addOutEdge(id, neighborId, null, null);
++	}
++
++	public void addOutEdge(int id, int neighborId, IoBuffer ioBuffer) {
++		addOutEdge(id, neighborId, ioBuffer, null);
++	}
++
++	public void addOutEdge(int id, int neighborId, E edgeValue) {
++		addOutEdge(id, neighborId, null, edgeValue);
++	}
++
++	private void addOutEdge(int id, int neighborId, IoBuffer ioBuffer, E edgeValueObject) {
++		if (id == neighborId) {
++			if (edgeValueObject != null || !(representativeEdgeValue instanceof NullWritable)) {
++				representativeEdgeValue.read(ioBuffer, new byte[representativeEdgeValue.numBytes()], 0);
++			}
++			return;
++		}
++		int localId = getLocalId(id);
++		int outNeighborIdIndex = outNeighborIdIndices[localId];
++		int[] outNeighbors = outNeighborIds[localId];
++		byte[][] outEdgeValues = null;
++		if (edgeValueObject != null || !(representativeEdgeValue instanceof NullWritable)) {
++			outEdgeValues = outEdgeValueBytes[localId];
++		}
++		if (outNeighborIdIndex == outNeighbors.length) {
++			int newOutNeighborIdsArrayLength =
++				Math.max(1, outNeighborIdIndex > 1000 ? (int) (outNeighborIdIndex * 1.2) : outNeighborIdIndex * 2);
++			int[] newOutNeighborIds = new int[newOutNeighborIdsArrayLength];
++			System.arraycopy(outNeighbors, 0, newOutNeighborIds, 0, outNeighbors.length);
++			for (int i = 0; i < outNeighborIdIndex; ++i) {
++				newOutNeighborIds[i] = outNeighbors[i];
++			}
++			outNeighborIds[localId] = newOutNeighborIds;
++			outNeighbors = newOutNeighborIds;
++			if (outEdgeValues != null) {
++				byte[][] newOutEdgeValues = new byte[newOutNeighborIdsArrayLength][];
++				System.arraycopy(outEdgeValues, 0, newOutEdgeValues, 0, outEdgeValues.length);
++				outEdgeValueBytes[localId] = newOutEdgeValues;
++				outEdgeValues = newOutEdgeValues;
++			}
++		}
++		outNeighbors[outNeighborIdIndex] = neighborId;
++		outNeighborIdIndices[localId] += 1;
++		if (outEdgeValues != null) {
++			byte[] newOutEdgeValue;
++			if (edgeValueObject != null) {
++				newOutEdgeValue = edgeValueObject.getByteArray();
++			} else {
++				newOutEdgeValue = new byte[representativeEdgeValue.numBytes()];
++				representativeEdgeValue.read(ioBuffer, newOutEdgeValue, 0);
++			}
++			outEdgeValues[outNeighborIdIndex] = newOutEdgeValue;
++		}
++		numOutEdges++;
++	}
++
++	@Override
++	public void addEdge(int id, int neighborId) {
++		addEdge(id, neighborId, null, null);
++	}
++
++	@Override
++	public void addEdge(int id, int neighborId, IoBuffer ioBuffer) {
++		addEdge(id, neighborId, ioBuffer, null);
++	}
++
++	@Override
++	public void addEdge(int id, int neighborId, E edgeValue) {
++		addEdge(id, neighborId, null, edgeValue);
++	}
++
++	@Override
++	public void addEdges(int id, int[] neighborIdsToAdd, E[] edgeValuesToAdd) {
++		if (edgeValuesToAdd != null && neighborIdsToAdd.length != edgeValuesToAdd.length) {
++			throw new IllegalArgumentException("ERROR!!! When adding multiple edges to the graph with values," +
++				" neighborIdsToAdd.length has to equal edgeValuesToAdd.length");
++		}
++		for (int i = 0; i < neighborIdsToAdd.length; ++i) {
++			addEdge(id, neighborIdsToAdd[i], null, edgeValuesToAdd == null ? null : edgeValuesToAdd[i]);
++		}
++	}
++
++	private void addEdge(int id, int neighborId, IoBuffer ioBuffer, E edgeValueObject) {
++		if (id == neighborId) {
++			if (edgeValueObject != null || !(representativeEdgeValue instanceof NullWritable)) {
++				representativeEdgeValue.read(ioBuffer, new byte[representativeEdgeValue.numBytes()], 0);
++			}
++			return;
++		}
++		int localId = getLocalId(id);
++		int neighborIdIndex = neighborIdIndices[localId];
++		int[] neighbors = neighborIds[localId];
++		byte[][] edgeValues = null;
++		if (edgeValueObject != null || !(representativeEdgeValue instanceof NullWritable)) {
++			edgeValues = edgeValueBytes[localId];
++		}
++		if (neighborIdIndex == neighbors.length) {
++			int newNeighborIdsArrayLength =
++				Math.max(1, neighborIdIndex > 1000 ? (int) (neighborIdIndex * 1.2) : neighborIdIndex * 2);
++			int[] newNeighborIds = new int[newNeighborIdsArrayLength];
++			System.arraycopy(neighbors, 0, newNeighborIds, 0, neighbors.length);
++			for (int i = 0; i < neighborIdIndex; ++i) {
++				newNeighborIds[i] = neighbors[i];
++			}
++			neighborIds[localId] = newNeighborIds;
++			neighbors = newNeighborIds;
++			if (edgeValues != null) {
++				byte[][] newEdgeValues = new byte[newNeighborIdsArrayLength][];
++				System.arraycopy(edgeValues, 0, newEdgeValues, 0, edgeValues.length);
++				edgeValueBytes[localId] = newEdgeValues;
++				edgeValues = newEdgeValues;
++			}
++		}
++		neighbors[neighborIdIndex] = neighborId;
++		neighborIdIndices[localId] += 1;
++		if (edgeValues != null) {
++			byte[] newEdgeValue;
++			if (edgeValueObject != null) {
++				newEdgeValue = edgeValueObject.getByteArray();
++			} else {
++				newEdgeValue = new byte[representativeEdgeValue.numBytes()];
++				representativeEdgeValue.read(ioBuffer, newEdgeValue, 0);
++			}
++			edgeValues[neighborIdIndex] = newEdgeValue;
++		}
++		numEdges++;
++	}
++
++	public int putDirected(int id, V value) {
++		int localId = getLocalId(id);
++		if (localId < 0){
++			logger.error("localId is negative: " + localId + " id: " + id);
++			return -1;
++		}
++		if (localId > maxLocalId) {
++			maxLocalId = localId;
++			resizeArraysIfNecessary(maxLocalId +1);
++		}
++		inNeighborIds[localId] = new int[0];
++		inNeighborIdIndices[localId] = 0;
++		outNeighborIds[localId] = new int[0];
++		outNeighborIdIndices[localId] = 0;
++		valuesArray[localId] = value;
++		isActiveArray[localId] = true;
++		isStableArray[localId] = false;
++		isUpdatedArray[localId] = false;
++		if (!(representativeEdgeValue instanceof NullWritable)) {
++			inEdgeValueBytes[localId] = new byte[0][];
++			outEdgeValueBytes[localId] = new byte[0][];
++		}		
++		return localId;
++	}
++
++	@Override
++	public int put(int id, V value) {
++		int localId = getLocalId(id); 
++		if (localId < 0) {
++			logger.error("localId is negative: " + localId + " id: " + id);
++			return -1;
++		}
++		if (localId > maxLocalId) {
++			maxLocalId = localId;
++			resizeArraysIfNecessary(maxLocalId + 1);
++		}
++		neighborIds[localId] = new int[1];
++		neighborIdIndices[localId] = 0;
++		originalIdsArray[localId] = id;
++		valuesArray[localId] = value;
++		isActiveArray[localId] = true;
++		isStableArray[localId] = false;
++		isUpdatedArray[localId] = false;
++		if (!(representativeEdgeValue instanceof NullWritable)) {
++			edgeValueBytes[localId] = new byte[1][];
++		}		
++		return localId;
++	}
++
++	private void resizeArraysIfNecessary(int maxLocalId) {
++		if (maxLocalId >= valuesArray.length) {
++			int newArrayLength = valuesArray.length > 1000000 ?
++				Math.max(maxLocalId, (int) (valuesArray.length * 1.05))
++					: Math.max(maxLocalId, valuesArray.length * 2);
++			logger.info("Resizing ArrayBackedGraph to: " + newArrayLength + " maxLocalId: " + maxLocalId);
++			resizeAllArrays(newArrayLength, false /* not shrinking */);
++		}
++	}
++
++	private void resizeAllArrays(int newArrayLength, boolean shrinking) {
++		int[][] newInNeighborIds = new int[newArrayLength][];
++		int[] newInNeighborIdIndices = new int[newArrayLength];
++		int[][] newOutNeighborIds = new int[newArrayLength][];
++		int[] newOutNeighborIdIndices = new int[newArrayLength];
++		byte[][][] newInEdgeValueBytes = null;
++		byte[][][] newOutEdgeValueBytes = null;
++
++		int[][] newNeighborIds = new int[newArrayLength][];
++		int[] newNeighborIdIndices = new int[newArrayLength];
++		int[] newOriginalIdsArray = new int[newArrayLength];
++		byte[][][] newEdgeValueBytes = null;
++		if (!(representativeEdgeValue instanceof NullWritable)) {
++			newEdgeValueBytes = new byte[newArrayLength][][];
++			newInEdgeValueBytes = new byte[newArrayLength][][];
++			newOutEdgeValueBytes = new byte[newArrayLength][][];
++		}
++		@SuppressWarnings("unchecked")
++		V[] newStatesArray =  (V[]) Array.newInstance(vertexClass, newArrayLength);
++		boolean[] newIsActiveArray = new boolean[newArrayLength];
++		boolean[] newIsStableArray = new boolean[newArrayLength];
++		boolean[] newIsUpdatedArray = new boolean[newArrayLength];
++		
++		int copyIndex = shrinking ? newArrayLength : valuesArray.length;
++		for (int i = 0; i < copyIndex; ++i) {
++			newInNeighborIds[i] = inNeighborIds[i];
++			newInNeighborIdIndices[i] = inNeighborIdIndices[i];
++			newOutNeighborIds[i] = outNeighborIds[i];
++			newOutNeighborIdIndices[i] = outNeighborIdIndices[i];
++			newIsStableArray[i] = isStableArray[i];
++
++			newNeighborIds[i] = neighborIds[i];
++			newOriginalIdsArray[i] = originalIdsArray[i];
++			newNeighborIdIndices[i] = neighborIdIndices[i];
++			newStatesArray[i] = valuesArray[i];
++			newIsActiveArray[i] = isActiveArray[i];
++			newIsUpdatedArray[i] = isUpdatedArray[i];
++
++			if (newEdgeValueBytes != null) {
++				newEdgeValueBytes[i] = edgeValueBytes[i];
++				newInEdgeValueBytes[i] = inEdgeValueBytes[i];
++				newOutEdgeValueBytes[i] = outEdgeValueBytes[i];
++			}
++		}
++		inNeighborIds = newInNeighborIds;
++		inNeighborIdIndices = newInNeighborIdIndices;
++		outNeighborIds = newOutNeighborIds;
++		outNeighborIdIndices = newOutNeighborIdIndices;
++		isStableArray = newIsStableArray;
++		isUpdatedArray = newIsUpdatedArray;
++		neighborIds = newNeighborIds;
++		neighborIdIndices = newNeighborIdIndices;
++		originalIdsArray = newOriginalIdsArray;
++		valuesArray = newStatesArray;
++		isActiveArray = newIsActiveArray;
++		if (newEdgeValueBytes != null) {
++			edgeValueBytes = newEdgeValueBytes;
++			inEdgeValueBytes = newInEdgeValueBytes;
++			outEdgeValueBytes = newOutEdgeValueBytes;
++		}
++	}
++
++	@Override
++	public void relabelIds(OpenIntIntHashMap relabelsMap) {
++		logger.debug("--------Logging Relabeling------------");
++		int[] neighborIdsArray;
++		int neighborId;
++		for (int i = 0; i < neighborIds.length; ++i) {
++			neighborIdsArray = neighborIds[i];
++			for (int j = 0; j < neighborIdIndices[i]; ++j) {
++				neighborId = neighborIdsArray[j];
++				if (relabelsMap.containsKey(neighborId)) {
++					int newNeighborId = relabelsMap.get(neighborId);
++					logger.debug("neighborId of localId: " + i + " is being relabeled from: "
++						+ neighborId  + " to: " + newNeighborId);
++					neighborIdsArray[j] = newNeighborId;
++				}
++			}
++		}
++		logger.debug("--------End of logging Relabeling------------");
++	}
++
++	@Override
++	public void relabelIdOfLocalId(int localId, int neighborIdIndex, int newId) {
++		this.neighborIds[localId][neighborIdIndex] = newId;
++	}
++	
++	@Override
++	public int size() {
++		return valuesArray.length; // idsMap.size() + reservedIdsMap.size();
++	}
++
++	@Override
++	public void finishedParsingGraph() {
++		logger.info("maxLocalId: " + maxLocalId);
++		resizeAllArrays(maxLocalId + 1, true /* shrinking */);
++		for (int i = 0; i < maxLocalId + 1; ++i) {
++			if (inNeighborIds[i] == null) {
++				inNeighborIds[i] = new int[0];
++				inNeighborIdIndices[i] = 0;
++			}
++			if (outNeighborIds[i] == null) {
++				outNeighborIds[i] = new int[0];
++				outNeighborIdIndices[i] = 0;
++			}
++			if (neighborIds[i] == null) {
++				V value = getValueOfLocalId(i) == null ? (V) vertex.getInitialValue(getGlobalId(i)):
++					getValueOfLocalId(i);
++				put(getGlobalId(i), getGlobalId(i), value,
++					new int[0], isActiveOfLocalId(i), false /* not a replacement */);
++				continue;
++			} 
++
++			if (getValueOfLocalId(i) == null) {
++				setValueOfLocalId(i, (V) vertex.getInitialValue(getGlobalId(i)));				
++			}
++			resizeEdgesForLocalId(i);
++		}
++	}
++
++	private void resizeEdgesForLocalId(int i) {
++		neighborIds[i] = Arrays.copyOf(neighborIds[i], neighborIdIndices[i]);
++		inNeighborIds[i] = Arrays.copyOf(inNeighborIds[i], inNeighborIdIndices[i]);
++		outNeighborIds[i] = Arrays.copyOf(outNeighborIds[i], outNeighborIdIndices[i]);
++		if (edgeValueBytes != null && edgeValueBytes.length > i) {
++			edgeValueBytes[i] = Arrays.copyOf(edgeValueBytes[i], neighborIdIndices[i]);
++			inEdgeValueBytes[i] = Arrays.copyOf(inEdgeValueBytes[i], inNeighborIdIndices[i]);
++			outEdgeValueBytes[i] = Arrays.copyOf(outEdgeValueBytes[i], outNeighborIdIndices[i]);
++		}
++	}
++
++	@Override
++	public boolean contains(int id) {
++		int localId = getLocalId(id);
++		return localId <= maxLocalId && localId >= 0 && ((id % numMachines) == localMachineId); // idsMap.containsKey(id) || reservedIdsMap.containsKey(id);
++	}
++
++	@Override
++	public void put(int id, int originalId, V value, int[] neighbors, boolean isActive,
++		boolean isReplacement) {
++		int localId = getLocalId(id);
++		if (isReplacement && neighborIds[localId] != null) {
++			numEdges -= neighborIds[localId].length;
++		}
++		neighborIds[localId] = neighbors;
++		neighborIdIndices[localId] = neighbors.length;
++		originalIdsArray[localId] = originalId;
++		valuesArray[localId] = value;
++		isActiveArray[localId] = isActive;
++		numEdges += neighbors.length;
++	}
++
++	@Override
++	public int getOriginalIdOfLocalId(int localId) {
++		return originalIdsArray[localId];
++	}
++
++	@Override
++	public void removeEdgesOfLocalId(int localId) {
++		numEdges -= this.neighborIdIndices[localId];
++		this.neighborIds[localId] = new int[0];
++		this.neighborIdIndices[localId] = 0;
++		if (this.edgeValueBytes != null && this.edgeValueBytes[localId] != null) {
++			this.edgeValueBytes[localId] = new byte[0][];
++		}
++	}
++
++	@Override
++	public void dumpGraphPartition() {
++		logger.info("Start of dumping graph partition...");
++		for (int localId = 0; localId < size(); ++localId) {
++			String debugString = "" + getGlobalId(localId);
++			if (!(representativeEdgeValue instanceof NullWritable) && edgeValueBytes[localId] != null) {
++				for (Edge<E> edge : getOutgoingEdgesOfLocalId(localId)) {
++					debugString += " " + edge.getNeighborId() + " " + edge.getEdgeValue();
++				}
++			} else {
++				for (int neighborId : neighborIds[localId]) {
++					debugString += " " + neighborId;
++				}
++			}
++			debugString += " isActive: " + isActiveArray[localId];
++			debugString += " value: " + valuesArray[localId];
++			logger.info(debugString);
++		}
++		logger.info("End of dumping graph partition...");
++	}
++
++	@Override
++	public int getNeighborsSize(int localId) {
++		return exceptionNeighborSizes.containsKey(localId) ? exceptionNeighborSizes.get(localId)
++			: neighborIdIndices[localId];
++	}
++
++	public int getInNeighborsSize(int localId) {
++		return inNeighborIdIndices[localId];
++	}
++
++	public int getOutNeighborsSize(int localId) {
++		return outNeighborIdIndices[localId];
++	}
++
++	@Override
++	public void setExeptionNeighborSizes(Map<Integer, Integer> exceptionNeighborSizes) {
++		this.exceptionNeighborSizes = exceptionNeighborSizes;
++	}
++
++	@Override
++	public int getNumEdges() {
++		return numEdges;
++	}
++
++	public int getInNumEdges() {
++		return numInEdges;
++	}
++
++	public int getOutNumEdges() {
++		return numOutEdges;
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/graph/InnerVertex.java b/java/gps/graph/InnerVertex.java
+new file mode 100644
+index 0000000..4d5850e
+--- /dev/null
++++ b/java/gps/graph/InnerVertex.java
+@@ -0,0 +1,229 @@
++package gps.graph;
++
++import java.util.Random;
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++
++import static gps.node.worker.GPSWorkerExposedGlobalVariables.getNumWorkers;
++import gps.globalobjects.GlobalObjectsMap;
++import gps.node.MinaWritableIterable.MessagesIterator;
++import gps.node.worker.GPSWorkerExposedGlobalVariables;
++import gps.node.worker.subgraph.StaticSubgraphMessageSender;
++import gps.writable.MinaWritable;
++
++import gps.globalobjects.IntSumGlobalObject;
++
++/**
++ * 
++ * Modify from Vertex
++ *
++ */
++public abstract class InnerVertex<V extends MinaWritable, E extends MinaWritable,
++	M extends MinaWritable, SV extends MinaWritable> {
++
++	public static byte ACTIVE_AS_BYTE = (byte) 1;
++	public static byte INACTIVE_AS_BYTE = (byte) 0;
++
++	public static boolean ACTIVE = true;
++	public static boolean INACTIVE = false;
++
++	public static StaticSubgraphMessageSender messageSender = null;
++
++	public static ArrayBackedSubgraph graphPartition = null;
++	
++	public static GlobalObjectsMap globalObjectsMap = null;
++	public int localId;
++	public static Random random;
++	public M sentMessage;
++	public static boolean interceptMessage = false;
++
++	private boolean msgSent = false;
++
++	private boolean shouldCheckStableInPreviousSupserstep = false;
++
++	private HashMap<Integer, ArrayList<Integer>> subgraphBufferedMessageMap;
++
++	public void voteToStableIfUnStablePreviousSuperstep() {
++        this.shouldCheckStableInPreviousSupserstep = true;
++    }
++
++    public boolean checkUnstableInPreviousSuperstep() {
++        return this.shouldCheckStableInPreviousSupserstep;
++    }
++
++	public boolean hadSentMsg() {
++        return msgSent;
++    }
++
++	public void sendBufferedData() {
++		messageSender.setIsCompress(true);
++		for (Integer machineId : subgraphBufferedMessageMap.keySet()) {
++			messageSender.sendCompressDataMessage(sentMessage, 
++				convertIntegers(subgraphBufferedMessageMap.get(machineId)));
++		}
++	}
++
++	public static int[] convertIntegers(List<Integer> integers) {
++	    int[] ret = new int[integers.size()];
++	    for (int i=0; i < ret.length; i++) {
++	        ret[i] = integers.get(i).intValue();
++	    }
++	    return ret;
++	}
++
++	public void sendMessagesOpti(int[] neighborIdsArray, M messageValue) {
++		for (int neighborId : neighborIdsArray) {
++			sendMessageOpti(neighborId, messageValue);
++		}
++	}
++
++	public void sendMessageOpti(int neighborId, M messageValue) {
++		this.msgSent = true;
++		this.sentMessage = messageValue;
++		int machineIdOfNeighbor = neighborId % getNumWorkers();
++		if (subgraphBufferedMessageMap.containsKey(machineIdOfNeighbor)) {
++			subgraphBufferedMessageMap.get(machineIdOfNeighbor).add(neighborId);
++		} else {
++			ArrayList<Integer> neighborIdList = new ArrayList<Integer>();
++			neighborIdList.add(neighborId);
++			subgraphBufferedMessageMap.put(machineIdOfNeighbor, neighborIdList);
++		}
++	}
++
++	public void sendMessages(int[] neighborIdsArray, M messageValue) {
++		if (interceptMessage) {
++			this.sentMessage = messageValue;
++			return;
++		}
++		for (int neighborId : neighborIdsArray) {
++			sendMessage(neighborId, messageValue);
++		}
++	}
++
++	public void sendMessage(int neighborId, M messageValue) {
++		this.msgSent = true;
++		messageSender.sendDataMessage(messageValue, neighborId);
++	}
++
++	public void voteToHalt() {
++		graphPartition.setIsActiveOfLocalId(localId, false);
++	}
++
++	public V getValueOfVertexInTheSamePartition(int vId) {
++		if (graphPartition.contains(vId))
++			return (V)graphPartition.getValueOfLocalId(graphPartition.getLocalId(vId));
++		else
++			return null;
++	}
++
++	public V getValue() {
++		return (V) graphPartition.getValueOfLocalId(localId);
++	}
++
++	public SV getSubgraphValue() {
++		return (SV) graphPartition.getValueOfSubgraph();
++	}
++
++	public int[] getOutNeighborIds() {
++		return graphPartition.getOutNeighborIdsOfLocalId(localId);
++	}
++
++	public int[] getInNeighborIds() {
++		return graphPartition.getInNeighborIdsOfLocalId(localId);
++	}
++
++	public int[] getNeighborIds() {
++		return graphPartition.getNeighborIdsOfLocalId(localId);
++	}
++	
++	public Iterable<Edge<E>> getOutgoingEdges() {
++		return graphPartition.getOutgoingEdgesOfLocalId(localId);
++	}
++
++	public void setValue(V value) {
++		graphPartition.setValueOfLocalId(localId, value);
++	}
++
++	public void relabelIdOfNeighbor(int neighborIdIndex, int newId) {
++		graphPartition.relabelIdOfLocalId(localId, neighborIdIndex, newId);
++	}
++	public int getGraphSize() {
++		return GPSWorkerExposedGlobalVariables.getGraphSize();
++	}
++	
++	public int getNeighborsSize() {
++		return graphPartition.getNeighborsSize(localId);
++	}
++	
++	public int getOutNeighborsSize() {
++		return graphPartition.getOutNeighborsSize(localId);
++	}
++
++	public int getInNeighborsSize() {
++		return graphPartition.getInNeighborsSize(localId);
++	}
++
++	public GlobalObjectsMap getGlobalObjectsMap() {
++		return globalObjectsMap;
++	}
++
++	public void setLocalId(int localId) {
++		this.localId = localId;
++		this.msgSent = false;
++		this.shouldCheckStableInPreviousSupserstep = false;
++		if (this.subgraphBufferedMessageMap == null)
++            this.subgraphBufferedMessageMap = new HashMap<Integer, ArrayList<Integer>>();
++        else
++            this.subgraphBufferedMessageMap.clear();
++	}
++	
++	public int getId() {
++		return graphPartition.getGlobalId(localId);
++	}
++
++	public abstract void compute(Iterable<M> messageValues, int superstepNo);
++
++	public abstract void doWorkAfterUpdateTopology(boolean add, int dstID);
++
++	public abstract void converge_checking(Iterable<M> incomingMessages, int superstepNo);
++
++	public abstract void incremental_compute(Iterable<M> incomingMessages, int superstepNo, boolean stableInPreviousSuperstep);
++
++	public V getInitialValue(int id) {
++		return null;
++	}
++
++	public void resetMessagesToBeginning(Iterable<M> messageValues) {
++		((MessagesIterator<M>) messageValues.iterator()).reset();
++	}
++
++	public void doWorkBeforeSuperstepComputation() {
++		// Nothing to do.
++	}
++
++	public Random getRandom() {
++		return random;
++	}
++	
++	public void printToStdErrAndThrowARuntimeException(String errorString) {
++		System.err.println(errorString);
++		throw new RuntimeException(errorString);
++	}
++	
++	public void voteToStable() {
++		graphPartition.setIsStableOfLocalId(localId, true);
++	} 
++
++	public void announceRecomputeSingal() {
++		globalObjectsMap.putGlobalObject("num-Of-Recompute-Signals", new IntSumGlobalObject(1));
++	}
++
++	public void logVertex() {
++		System.out.println("id: " + getId() + " value: " + getValue());
++		for (Edge<E> edge : getOutgoingEdges()) {
++			System.out.print(" " + edge.getNeighborId() + " value: " + edge.getEdgeValue().toString());
++		}
++		System.out.println();
++	}
++}
+diff --git a/java/gps/graph/InnerVertexFactory.java b/java/gps/graph/InnerVertexFactory.java
+new file mode 100644
+index 0000000..a5c3a2f
+--- /dev/null
++++ b/java/gps/graph/InnerVertexFactory.java
+@@ -0,0 +1,17 @@
++package gps.graph;
++
++import org.apache.commons.cli.CommandLine;
++
++import gps.node.worker.AbstractGPSWorker;
++import gps.writable.MinaWritable;
++
++/**
++ * 
++ * Modify from vertexFactory
++ *
++ */
++public abstract class InnerVertexFactory<V extends MinaWritable, E extends MinaWritable,
++	M extends MinaWritable, SV extends MinaWritable> {
++
++	public abstract InnerVertex<V, E, M, SV> newInstance(CommandLine commandline);
++}
+diff --git a/java/gps/graph/Master.java b/java/gps/graph/Master.java
+index 0e8218d..307d210 100644
+--- a/java/gps/graph/Master.java
++++ b/java/gps/graph/Master.java
+@@ -36,6 +36,14 @@ public class Master {
+ 		}
+ 	}
+ 
++	// sgps
++	public void incremental_compute(int superstep) {
++	}
++
++	public void setup() {
++	}
++	// sgps
++
+ 	/**
+ 	 * @return true if terminating
+ 	 */
+diff --git a/java/gps/graph/NullEdgeInnerVertexFactory.java b/java/gps/graph/NullEdgeInnerVertexFactory.java
+new file mode 100644
+index 0000000..db586ec
+--- /dev/null
++++ b/java/gps/graph/NullEdgeInnerVertexFactory.java
+@@ -0,0 +1,14 @@
++package gps.graph;
++
++import gps.writable.MinaWritable;
++import gps.writable.NullWritable;
++
++/**
++ *
++ * Modify from NullEdgeVertexFactory
++ *
++ */
++
++public abstract class NullEdgeInnerVertexFactory<V extends MinaWritable,
++	M extends MinaWritable, SV extends MinaWritable> extends InnerVertexFactory<V, NullWritable, M, SV>{
++}
+diff --git a/java/gps/graph/NullEdgeSubgraphVertex.java b/java/gps/graph/NullEdgeSubgraphVertex.java
+new file mode 100644
+index 0000000..52df74a
+--- /dev/null
++++ b/java/gps/graph/NullEdgeSubgraphVertex.java
+@@ -0,0 +1,8 @@
++package gps.graph;
++
++import gps.writable.MinaWritable;
++import gps.writable.NullWritable;
++
++public abstract class NullEdgeSubgraphVertex<V extends MinaWritable, M extends MinaWritable, SV extends MinaWritable> extends
++	InnerVertex<V, NullWritable, M, SV>{
++}
+diff --git a/java/gps/graph/Subgraph.java b/java/gps/graph/Subgraph.java
+new file mode 100644
+index 0000000..ce79759
+--- /dev/null
++++ b/java/gps/graph/Subgraph.java
+@@ -0,0 +1,105 @@
++package gps.graph;
++
++import gps.globalobjects.GlobalObjectsMap;
++import gps.messages.storage.ArrayBackedIncomingSubgraphMessageStorage;
++import gps.node.MinaWritableIterable.MessagesIterator;
++import gps.node.worker.subgraph.StaticSubgraphMessageSender;
++import gps.writable.MinaWritable;
++
++public abstract class Subgraph<V extends MinaWritable, E extends MinaWritable,
++	M extends MinaWritable, SV extends MinaWritable, SM extends MinaWritable> {
++
++	public static byte ACTIVE_AS_BYTE = (byte) 1;
++	public static byte INACTIVE_AS_BYTE = (byte) 0;
++
++	public static boolean ACTIVE = true;
++	public static boolean INACTIVE = false;
++
++	public static StaticSubgraphMessageSender messageSender = null;
++	public static ArrayBackedSubgraph graphPartition = null;
++	public static GlobalObjectsMap globalObjectsMap = null;
++	public static ArrayBackedIncomingSubgraphMessageStorage incomingMessageStorage;
++
++	private int subgraphId;
++
++	public abstract void compute_before_vertex(Iterable<SM> messageValues, int superstepNo);
++	public abstract void compute_after_vertex(Iterable<SM> messageValues, int superstepNo);
++
++	public void voteToHalt() {
++		graphPartition.setIsActiveOfSubgraph(false);
++	}
++
++	public void voteToStable() {
++		graphPartition.setIsStableOfSubgraph(false);
++	}
++
++	public void sendMessage(int neighborSubgraphId, SM messageValue) {
++		messageSender.sendSubgraphDataMessage(messageValue, neighborSubgraphId);
++	}
++
++	public int[] getInnerVertexIds() {
++		return graphPartition.getInnerVertexIds();
++	}
++
++	public V getInnerVertexValueOfId(int innerVId) {
++		if (graphPartition.contains(innerVId))
++			return (V)graphPartition.getValueOfLocalId(graphPartition.getLocalId(innerVId));
++		else
++			return null;
++	}
++
++	public void setInnerVertexValueOfId(int innerVId, V value) {
++		if (graphPartition.contains(innerVId))
++			graphPartition.setValueOfLocalId(graphPartition.getLocalId(innerVId), value);
++	}
++
++	public SV getValue() {
++		return (SV) graphPartition.getValueOfSubgraph();
++	}
++
++	public void setValue(SV value) {
++		graphPartition.setValueOfSubgraph(value);
++	}
++
++	public void setSubgraphId(int subgraphId) {
++		this.subgraphId = subgraphId;
++	}
++
++	public int getSubgraphId() {
++		return subgraphId;
++	}
++
++	public int getGraphSize() {
++		return graphPartition.getInnerVertexIds().length;
++	}
++
++	public GlobalObjectsMap getGlobalObjectsMap() {
++		return globalObjectsMap;
++	}
++
++	public int[] getInnerVertexNeighbor(int innerVId) {
++		if (graphPartition.contains(innerVId)) {
++			return graphPartition.getNeighborIdsOfLocalId(graphPartition.getLocalId(innerVId));
++		} else
++			return null;
++	}
++
++	public int[] getInnerVertexOutNeighbor(int innerVId) {
++		if (graphPartition.contains(innerVId)) {
++			return graphPartition.getOutNeighborIdsOfLocalId(graphPartition.getLocalId(innerVId));
++		} else
++			return null;
++	}
++
++	public int[] getInnerVertexInNeighbor(int innerVId) {
++		if (graphPartition.contains(innerVId)) {
++			return graphPartition.getInNeighborIdsOfLocalId(graphPartition.getLocalId(innerVId));
++		} else
++			return null;
++	}	
++
++	public void resetMessagesToBeginning(Iterable<SM> messageValues) {
++		((MessagesIterator<SM>) messageValues.iterator()).reset();
++	}
++
++}
+\ No newline at end of file
+diff --git a/java/gps/graph/SubgraphFactory.java b/java/gps/graph/SubgraphFactory.java
+new file mode 100644
+index 0000000..9b4009f
+--- /dev/null
++++ b/java/gps/graph/SubgraphFactory.java
+@@ -0,0 +1,11 @@
++package gps.graph;
++
++import org.apache.commons.cli.CommandLine;
++
++import gps.writable.MinaWritable;
++
++public abstract class SubgraphFactory<V extends MinaWritable, E extends MinaWritable,  
++	M extends MinaWritable, SV extends MinaWritable, SM extends MinaWritable> {
++
++	public abstract Subgraph<V, E, M, SV, SM> newInstance(CommandLine commandline);
++}
+diff --git a/java/gps/messages/MessageTypes.java b/java/gps/messages/MessageTypes.java
+index bcdf2e3..2099b4e 100644
+--- a/java/gps/messages/MessageTypes.java
++++ b/java/gps/messages/MessageTypes.java
+@@ -18,7 +18,10 @@ public enum MessageTypes {
+ 	LARGE_VERTEX_DATA(18),
+ 	INPUT_SPLIT(19),
+ 	INITIAL_VERTEX_PARTITIONING(20),
+-	FINAL_INITIAL_VERTEX_PARTITIONING_SENT(21);
++	FINAL_INITIAL_VERTEX_PARTITIONING_SENT(21),
++	COMPRESS_VERTEX_DATA(22),					// sgps
++	SUBGRAPH_DATA(23),							// sgps
++	INITIAL_DIRECTED_VERTEX_PARTITIONING(24); 	// sgps
+ 
+ 	private static Map<Integer, MessageTypes> idTypeMap = new HashMap<Integer, MessageTypes>();
+ 	static {
+diff --git a/java/gps/messages/storage/ArrayBackedIncomingSubgraphMessageStorage.java b/java/gps/messages/storage/ArrayBackedIncomingSubgraphMessageStorage.java
+new file mode 100644
+index 0000000..3544589
+--- /dev/null
++++ b/java/gps/messages/storage/ArrayBackedIncomingSubgraphMessageStorage.java
+@@ -0,0 +1,452 @@
++package gps.messages.storage;
++
++import java.util.HashSet;
++import java.util.List;
++
++import org.apache.log4j.Logger;
++import org.apache.mina.core.buffer.IoBuffer;
++
++import gps.graph.ArrayBackedSubgraph;
++import gps.node.MinaWritableIterable;
++import gps.node.Utils;
++import gps.node.worker.GPSWorkerExposedGlobalVariables;
++import gps.writable.MinaWritable;
++
++/**
++ * Modify from ArrayBackedIncomingMessageStorage
++ */
++public class ArrayBackedIncomingSubgraphMessageStorage<M extends MinaWritable, SM extends MinaWritable>
++	extends IncomingMessageStorage<M> {
++
++	private static Logger logger = Logger.getLogger(ArrayBackedIncomingSubgraphMessageStorage.class);
++
++	private byte[][] incomingEvenSuperstepDataMessageQueueMap;
++	private int[] incomingEvenSuperstepDataMessageIndices;
++	private byte[][] incomingOddSuperstepDataMessageQueueMap;
++	private int[] incomingOddSuperstepDataMessageIndices;
++
++	private byte[][] previousSuperstepIncomingMessageQueueMap;
++	private int[] previousSuperstepIncomingMessageIndices;
++	private byte[][] nextSuperstepIncomingMessageQueueMap;
++	private int[] nextSuperstepIncomingMessageIndices;
++
++	private byte[] incomingEvenSuperstepSubgraphDataMessageQueueMap;
++	private int incomingEvenSuperstepSubgraphDataMessageIndices;
++	private byte[] incomingOddSuperstepSubgraphDataMessageQueueMap;
++	private int incomingOddSuperstepSubgraphDataMessageIndices;
++
++	private byte[] previousSuperstepSubgraphIncomingMessageQueueMap;
++	private int previousSuperstepSubgraphIncomingMessageIndices;
++	private byte[] nextSuperstepSubgraphIncomingMessageQueueMap;
++	private int nextSuperstepSubgraphIncomingMessageIndices;
++
++	public static MinaWritableIterable incomingMessageValues = new MinaWritableIterable();
++	public static MinaWritableIterable incomingSubgraphMessageValues = new MinaWritableIterable();
++	private final ArrayBackedSubgraph graphPartition;
++	private final M representativeMessageInstance;
++	private final SM representativeSubgraphMessageInstance;
++	private byte[] tmpByteArray = new byte[200];
++
++	private final boolean combine;
++	
++	public ArrayBackedIncomingSubgraphMessageStorage(ArrayBackedSubgraph graphPartition,
++		Class<M> representativeMessageClass, Class<SM> representativeSubgraphMessageClass, 
++		boolean combine, int numWorkers)
++		throws InstantiationException, IllegalAccessException {
++
++		this.graphPartition = graphPartition;
++		this.combine = combine;
++		this.representativeMessageInstance = representativeMessageClass.newInstance();
++		this.representativeSubgraphMessageInstance = representativeSubgraphMessageClass.newInstance();
++
++		this.incomingMessageValues.messagesIterator.setRepresentativeWritableInstance(
++			representativeMessageClass.newInstance());
++
++		this.incomingSubgraphMessageValues.messagesIterator.setRepresentativeWritableInstance(
++			representativeSubgraphMessageClass.newInstance());
++
++		int dataStructureSizes = graphPartition.size() + 100;
++		logger.info("Data Structure Sizes: " + dataStructureSizes);
++
++		incomingEvenSuperstepDataMessageQueueMap = new byte[dataStructureSizes][];
++		incomingEvenSuperstepDataMessageIndices = new int[dataStructureSizes];
++		incomingOddSuperstepDataMessageQueueMap = new byte[dataStructureSizes][];
++		incomingOddSuperstepDataMessageIndices = new int[dataStructureSizes];
++
++		for (int localId = 0; localId < graphPartition.size(); ++localId) {
++			addNewVertexToStorage(localId);
++		}
++
++		previousSuperstepSubgraphIncomingMessageIndices = -1;
++
++		incomingEvenSuperstepSubgraphDataMessageQueueMap =
++			new byte[2 *representativeMessageInstance.numBytes()];
++		incomingEvenSuperstepSubgraphDataMessageIndices = 0;
++		incomingOddSuperstepSubgraphDataMessageQueueMap =
++			new byte[2 *representativeMessageInstance.numBytes()];
++		incomingOddSuperstepSubgraphDataMessageIndices = 0;
++	}
++	
++
++	// WARNING: numMessagesReceived is not the exact value. It might be off a little because
++	// this class does not check whether an incoming message belongs to the current superstep
++	// or the next superstep, which can happen if another GPS Worker starts its superstep
++	// computation earlier than this instance and starts sending messages. However it should not
++	// be off by much.
++	@Override
++	public void startingSuperstep() {
++		if (Utils.isEven(GPSWorkerExposedGlobalVariables.getCurrentSuperstepNo())) {
++			previousSuperstepIncomingMessageQueueMap = incomingEvenSuperstepDataMessageQueueMap;
++			previousSuperstepIncomingMessageIndices = incomingEvenSuperstepDataMessageIndices;
++			previousSuperstepSubgraphIncomingMessageQueueMap = incomingEvenSuperstepSubgraphDataMessageQueueMap;
++			previousSuperstepSubgraphIncomingMessageIndices = incomingEvenSuperstepSubgraphDataMessageIndices;
++		} else {
++			previousSuperstepIncomingMessageQueueMap = incomingOddSuperstepDataMessageQueueMap;
++			previousSuperstepIncomingMessageIndices = incomingOddSuperstepDataMessageIndices;
++			previousSuperstepSubgraphIncomingMessageQueueMap = incomingOddSuperstepSubgraphDataMessageQueueMap;
++			previousSuperstepSubgraphIncomingMessageIndices = incomingOddSuperstepSubgraphDataMessageIndices;
++		}
++	}
++
++	public void setNextSuperstepQueueMapAndIndices(int superstepNo) {
++		if (previousSuperstepIncomingMessageIndices != null) {
++			int messageNumBytes = 2 * representativeMessageInstance.numBytes();
++			for (int i = 0; i < previousSuperstepIncomingMessageIndices.length; ++i) {
++				previousSuperstepIncomingMessageIndices[i] = 0;
++				if (previousSuperstepIncomingMessageQueueMap[i] == null
++						|| previousSuperstepIncomingMessageQueueMap[i].length > messageNumBytes) {
++					previousSuperstepIncomingMessageQueueMap[i] =
++						new byte[messageNumBytes];
++				}
++			}
++		}
++		if (previousSuperstepSubgraphIncomingMessageIndices != -1) {
++			int messageNumBytes = 2 * representativeSubgraphMessageInstance.numBytes();
++			previousSuperstepSubgraphIncomingMessageIndices = 0;
++			if (previousSuperstepSubgraphIncomingMessageQueueMap == null || 
++				previousSuperstepSubgraphIncomingMessageQueueMap.length > messageNumBytes) {
++				previousSuperstepSubgraphIncomingMessageQueueMap = new byte[messageNumBytes];
++			}
++
++		}
++
++		if (Utils.isEven(superstepNo)) {
++			nextSuperstepIncomingMessageQueueMap = incomingOddSuperstepDataMessageQueueMap;
++			nextSuperstepIncomingMessageIndices = incomingOddSuperstepDataMessageIndices;
++			nextSuperstepSubgraphIncomingMessageQueueMap = incomingOddSuperstepSubgraphDataMessageQueueMap;
++			nextSuperstepSubgraphIncomingMessageIndices = incomingOddSuperstepSubgraphDataMessageIndices;
++		} else {
++			nextSuperstepIncomingMessageQueueMap = incomingEvenSuperstepDataMessageQueueMap;
++			nextSuperstepIncomingMessageIndices = incomingEvenSuperstepDataMessageIndices;
++			nextSuperstepSubgraphIncomingMessageQueueMap = incomingEvenSuperstepSubgraphDataMessageQueueMap;
++			nextSuperstepSubgraphIncomingMessageIndices = incomingEvenSuperstepSubgraphDataMessageIndices;
++		}
++	}
++
++	public void addMessageToSubgraphQueue(IoBuffer ioBuffer) {
++		byte[] messageQueue = nextSuperstepSubgraphIncomingMessageQueueMap;
++		if (messageQueue == null) {
++			logger.info("No message queue for subgraph");
++			representativeSubgraphMessageInstance.read(ioBuffer);
++			return ;
++		}
++		int messageQueueIndex = nextSuperstepSubgraphIncomingMessageIndices;
++		if (combine && messageQueueIndex > 0) {
++			return;
++		}
++		if (representativeSubgraphMessageInstance.hasFixedSize()) {
++			boolean expandedMessageQueue = false;
++			int possibleNewArrayLengthTmp = -1;
++			int newArrayLengthTmp = -1;
++			if (messageQueueIndex + ioBuffer.capacity() >= messageQueue.length) {
++				expandedMessageQueue = true;
++				int possibleNewArrayLength = messageQueueIndex + ioBuffer.capacity();
++				possibleNewArrayLengthTmp = possibleNewArrayLength;
++				int newArrayLength = Math.max(2, possibleNewArrayLength);
++				newArrayLengthTmp = newArrayLength;
++				byte[] newQueue = null;
++				try {
++					newQueue = new byte[newArrayLength];
++				} catch (OutOfMemoryError e) {
++					logger.error("ERROR!!! " + e.getMessage());
++					e.printStackTrace();
++					logger.info("currentSubgraphMessageQueueLength: " + messageQueue.length +
++						" possibleNewSubgraphArrayLengthTmp: " + possibleNewArrayLengthTmp);
++					representativeSubgraphMessageInstance.read(ioBuffer);
++					return;
++				}
++				System.arraycopy(messageQueue, 0, newQueue, 0, messageQueueIndex);
++				nextSuperstepSubgraphIncomingMessageQueueMap = newQueue;
++				messageQueue = newQueue;
++			}
++			int messageQueueLength = messageQueue.length;
++			int messageQueueIndexTmp = messageQueueIndex;
++			try { 
++			nextSuperstepSubgraphIncomingMessageIndices += representativeSubgraphMessageInstance.read(
++				ioBuffer, messageQueue, messageQueueIndex);
++			} catch (IndexOutOfBoundsException e) {
++				System.out.println("messageQueue.length: " + messageQueueLength
++					+ " messageQueueIndex: " + messageQueueIndexTmp
++					+ " expandedMessageQueue: " + expandedMessageQueue
++					+ " possibleNewArrayLengthTmp: " + possibleNewArrayLengthTmp
++					+ " newArrayLengthTmp: " + newArrayLengthTmp);
++				return;	
++			}
++		}
++	}
++
++	@Override
++	public void addMessageToQueue(int toNodeId, IoBuffer ioBuffer) {
++		addMessage(toNodeId, ioBuffer);
++	}
++
++	private void addMessage(int toNodeId, IoBuffer ioBuffer) {
++		int localId = graphPartition.getLocalId(toNodeId);
++		if (localId >= nextSuperstepIncomingMessageQueueMap.length) {
++			logger.error("localId: " + toNodeId + " is larger than the message queue length: " + nextSuperstepIncomingMessageQueueMap.length);
++			representativeMessageInstance.read(ioBuffer);
++			return;
++		}
++		byte[] messageQueue = nextSuperstepIncomingMessageQueueMap[localId];
++		if (messageQueue == null) {
++			// TODO(semih): Add a message queu here! And change setNextSuperstep.
++			logger.error("No message queue for nodeId: " + toNodeId + " localId: " + localId);
++			representativeMessageInstance.read(ioBuffer);
++			return;
++		}
++		int messageQueueIndex = nextSuperstepIncomingMessageIndices[localId];
++		// TODO(semih): This won't work with using IoBuffers. Fix this.
++		if (combine && messageQueueIndex > 0) {
++			representativeMessageInstance.combine(messageQueue, tmpByteArray);
++			return;
++		}
++		if (representativeMessageInstance.hasFixedSize()) {
++			// TODO(semih): This 64 byte buffer may not be very large
++			boolean expandedMessageQueue = false;
++			int possibleNewArrayLengthTmp = -1;
++			int newArrayLengthTmp = -1;
++			// sgps
++            //if (messageQueueIndex >= (messageQueue.length - 64)) {
++            if (messageQueueIndex + ioBuffer.capacity() >= messageQueue.length) {
++            // sgps
++                expandedMessageQueue = true;
++                // sgps
++                //int possibleNewArrayLength = messageQueue.length > 80000 ? (int) (messageQueue.length * 1.2)
++                //  : Math.max(messageQueue.length * 2, 64);
++                int possibleNewArrayLength = messageQueueIndex + ioBuffer.capacity();
++                // sgps
++                possibleNewArrayLengthTmp = possibleNewArrayLength;
++				int newArrayLength = Math.max(2, possibleNewArrayLength);
++				newArrayLengthTmp = newArrayLength;
++				byte[] newQueue = null;
++				try {
++					newQueue = new byte[newArrayLength];
++				} catch (OutOfMemoryError e) {
++					logger.error("ERROR!!! " + e.getMessage());
++					e.printStackTrace();
++					logger.info("currentMessageQueueLength: " + messageQueue.length +
++						" possibleNewArrayLengthTmp: " + possibleNewArrayLengthTmp + " toNodeId: " + toNodeId);
++					representativeMessageInstance.read(ioBuffer);
++					return;
++				}
++				System.arraycopy(messageQueue, 0, newQueue, 0, messageQueueIndex);
++				nextSuperstepIncomingMessageQueueMap[localId] = newQueue;
++				messageQueue = newQueue;
++			}
++			int messageQueueLength = messageQueue.length;
++			int messageQueueIndexTmp = messageQueueIndex;
++			try { 
++			nextSuperstepIncomingMessageIndices[localId] += representativeMessageInstance.read(
++				ioBuffer, messageQueue, messageQueueIndex);
++			} catch (IndexOutOfBoundsException e) {
++				System.out.println("messageQueue.length: " + messageQueueLength
++					+ " messageQueueIndex: " + messageQueueIndexTmp
++					+ " expandedMessageQueue: " + expandedMessageQueue
++					+ " possibleNewArrayLengthTmp: " + possibleNewArrayLengthTmp
++					+ " newArrayLengthTmp: " + newArrayLengthTmp);
++				return;	
++			}
++		} else {
++			representativeMessageInstance.read(ioBuffer);
++			if (messageQueueIndex >= (messageQueue.length - representativeMessageInstance.numBytes())) {
++				int possibleNewArrayLength = messageQueue.length > 80000 ? 
++					(int) (messageQueue.length * 1.2) : Math.max(messageQueue.length * 2, 2);
++				int newArrayLength = Math.max(messageQueueIndex + representativeMessageInstance.numBytes(),
++					possibleNewArrayLength);
++				byte[] newQueue = new byte[newArrayLength];
++				System.arraycopy(messageQueue, 0, newQueue, 0, messageQueueIndex);
++				nextSuperstepIncomingMessageQueueMap[localId] = newQueue;
++				messageQueue = newQueue;
++			}
++			nextSuperstepIncomingMessageIndices[localId] += representativeMessageInstance.read(
++				ioBuffer, messageQueue, messageQueueIndex);
++		}
++	}
++
++	@Override
++	public void addMessageToQueues(List<Integer> toNodeIds,
++		IoBuffer ioBuffer) {
++		int size = representativeMessageInstance.read(ioBuffer, tmpByteArray, 0);
++		if (toNodeIds == null || toNodeIds.isEmpty()) {
++			return;
++		}
++		int localId;
++		byte[] messageQueue;
++		int messageQueueIndex;
++		for (int neighborId : toNodeIds) {
++			localId = graphPartition.getLocalId(neighborId);
++			messageQueue = nextSuperstepIncomingMessageQueueMap[localId];
++			if (messageQueue == null) {
++				continue;
++			}
++			messageQueueIndex = nextSuperstepIncomingMessageIndices[localId];
++			if (combine && messageQueueIndex > 0) {
++				representativeMessageInstance.combine(messageQueue, tmpByteArray);
++				return;
++			}
++			// TODO(semih): This 64 byte buffer may not be very large
++			 // sgps
++            //if (messageQueueIndex >= (messageQueue.length - 64)) {
++            if (messageQueueIndex + size >= messageQueue.length) {
++            // sgps
++                // sgps
++                // int possibleNewArrayLength =
++                //    messageQueue.length > 80000 ? (int) (messageQueue.length * 1.2)
++                //        : Math.max(messageQueue.length * 2, 64);
++                int possibleNewArrayLength = messageQueueIndex + size;
++                // sgps
++				int newArrayLength = Math.max(2, possibleNewArrayLength);
++				byte[] newQueue = new byte[newArrayLength];
++				System.arraycopy(messageQueue, 0, newQueue, 0, messageQueueIndex);
++				nextSuperstepIncomingMessageQueueMap[localId] = newQueue;
++				messageQueue = newQueue;
++			}
++			System.arraycopy(tmpByteArray, 0, messageQueue, messageQueueIndex, size);
++			nextSuperstepIncomingMessageIndices[localId] += size;
++		}
++	}
++
++	public Iterable<SM> getSubgraphMessageValuesForCurrentSuperstep() {
++		return getSubgraphMessageValuesFromMessagesQueue(previousSuperstepSubgraphIncomingMessageQueueMap,
++			previousSuperstepSubgraphIncomingMessageIndices);
++	}
++
++
++	// Warning: We are implicitly assuming that this method will be called once per superstep.
++	// That is why we set the index to 0 after constructing the Iterable<Double> return value.
++	@Override
++	public Iterable<M> getMessageValuesForCurrentSuperstep(int localId) {
++		return getMessageValuesFromMessagesQueue(localId, previousSuperstepIncomingMessageQueueMap,
++			previousSuperstepIncomingMessageIndices);
++	}
++
++	@Override
++	public Iterable<M> getMessageValuesForNextSuperstep(int localId) {
++		return getMessageValuesFromMessagesQueue(localId, nextSuperstepIncomingMessageQueueMap,
++			nextSuperstepIncomingMessageIndices);
++	}
++	
++	public void adjustArraySizesForNewVertex(int idOfVertexReceivedInPreviousSuperstep,
++		int superstepNo) {
++		int localId = graphPartition.getLocalId(idOfVertexReceivedInPreviousSuperstep);
++		int currentSize;
++		// We assume that this method is being called at the end of the superstep for a vertex.
++		// The reason we are picking the odd superstep as the indication for the length of the
++		// message queues when the current superstep is even is the following:
++		// - Assume vertex x was moved to this machine in previous superstep (let's say it was odd)
++		// - So in this superstep (even), other machines start sending messages to this machine for x
++		// - The messages sent in this superstep (even) is for next superstep (odd).
++		// Therefore we should look at the length of the message queue for the odd superstep
++		// if the current superstep is even and vice versa for the other case.
++		if (Utils.isEven(superstepNo)) {
++			currentSize = incomingOddSuperstepDataMessageIndices[localId];
++			byte[] newOddMessagesQueue = new byte[currentSize];
++			byte[] oldOddSuperstepDataMessagesQueue =
++				incomingOddSuperstepDataMessageQueueMap[localId];
++			System.arraycopy(oldOddSuperstepDataMessagesQueue, 0, newOddMessagesQueue,
++				0, Math.min(currentSize, oldOddSuperstepDataMessagesQueue.length));
++			incomingEvenSuperstepDataMessageQueueMap[localId] = new byte[currentSize];
++		} else {
++			currentSize = incomingEvenSuperstepDataMessageIndices[localId];
++			byte[] newEvenMessagesQueue = new byte[currentSize];
++			byte[] oldEvenSuperstepDataMessagesQueue =
++				incomingEvenSuperstepDataMessageQueueMap[localId];
++			System.arraycopy(oldEvenSuperstepDataMessagesQueue, 0, newEvenMessagesQueue,
++				0, Math.min(currentSize, oldEvenSuperstepDataMessagesQueue.length));
++			incomingOddSuperstepDataMessageQueueMap[localId] = new byte[currentSize];
++		}
++	}
++
++	private Iterable<SM> getSubgraphMessageValuesFromMessagesQueue(
++		byte[] incomingSubgraphMessageQueueMap, int incomingSubgraphMessageIndices) {
++		incomingSubgraphMessageValues.messagesIterator.init(incomingSubgraphMessageQueueMap,
++			incomingSubgraphMessageIndices);
++		incomingSubgraphMessageIndices = 0;
++		incomingSubgraphMessageQueueMap = new byte[2*representativeSubgraphMessageInstance.numBytes()];
++		return incomingSubgraphMessageValues;
++	}
++
++	private Iterable<M> getMessageValuesFromMessagesQueue(int localNodeId,
++		byte[][] incomingMessageQueueMap, int[] incomingMessageIndices) {
++		incomingMessageValues.messagesIterator.init(incomingMessageQueueMap[localNodeId],
++			incomingMessageIndices[localNodeId]);
++		incomingMessageIndices[localNodeId] = 0;
++		incomingMessageQueueMap[localNodeId] =
++			new byte[2*representativeMessageInstance.numBytes()];
++		return incomingMessageValues;
++	}
++
++	public byte[][] getIncomingMessagesForNextSuperstep() {
++		return nextSuperstepIncomingMessageQueueMap;
++	}
++
++	public int[] getIncomingIndicesForNextSuperstep() {
++		return nextSuperstepIncomingMessageIndices;
++	}
++
++	@Override
++	public void addVertexToStorage(int localId, int numNeighbors) {
++		synchronized (this) {
++			if (localId >= incomingEvenSuperstepDataMessageQueueMap.length) {
++				int newArrayLength =
++					incomingEvenSuperstepDataMessageQueueMap.length > 1000000 ?
++						(int) (incomingEvenSuperstepDataMessageQueueMap.length * 1.2)
++						: incomingEvenSuperstepDataMessageQueueMap.length * 2;
++				incomingEvenSuperstepDataMessageQueueMap =
++					resizeDoubleQueueMap(incomingEvenSuperstepDataMessageQueueMap, newArrayLength);
++				incomingEvenSuperstepDataMessageIndices =
++					resizeIntArray(incomingEvenSuperstepDataMessageIndices, newArrayLength);
++				incomingOddSuperstepDataMessageQueueMap =
++					resizeDoubleQueueMap(incomingOddSuperstepDataMessageQueueMap, newArrayLength);
++				incomingOddSuperstepDataMessageIndices =
++					resizeIntArray(incomingOddSuperstepDataMessageIndices, newArrayLength);
++			}
++			addNewVertexToStorage(localId);
++		}
++	}
++
++	private int[] resizeIntArray(int[] intArray, int newArrayLength) {
++		int[] newArray = new int[newArrayLength];
++		for (int i = 0; i < intArray.length; ++i) {
++			newArray[i] = intArray[i];
++		}
++		return newArray;
++	}
++
++	private byte[][] resizeDoubleQueueMap(byte[][] queueMap, int newArrayLength) {
++		byte[][] newQueueMap = new byte[newArrayLength][];
++		for (int i = 0; i < queueMap.length; ++i) {
++			newQueueMap[i] = queueMap[i];
++		}
++		return newQueueMap;
++	}
++
++	private void addNewVertexToStorage(int localId) {
++		incomingEvenSuperstepDataMessageQueueMap[localId] =
++			new byte[2 *representativeMessageInstance.numBytes()];
++		incomingEvenSuperstepDataMessageIndices[localId] = 0;
++		incomingOddSuperstepDataMessageQueueMap[localId] =
++			new byte[2 *representativeMessageInstance.numBytes()];
++		incomingOddSuperstepDataMessageIndices[localId] = 0;
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/node/ComputationTypes.java b/java/gps/node/ComputationTypes.java
+new file mode 100644
+index 0000000..b2c807c
+--- /dev/null
++++ b/java/gps/node/ComputationTypes.java
+@@ -0,0 +1,34 @@
++package gps.node;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public enum ComputationTypes {
++	COMPUTE(0),
++	CONVERGE_CHECKING(1),
++	WAITING(2),
++	INCREMENTAL_COMPUTE(3), 
++	RECOMPUTE_SETUP(4); 
++
++	private static Map<Integer, ComputationTypes> idTypeMap = new HashMap<Integer, ComputationTypes>();
++	static {
++		for (ComputationTypes type : ComputationTypes.values()) {
++			idTypeMap.put(type.id, type);
++		}
++	}
++
++	private int id;
++
++	private ComputationTypes(int id) {
++		this.id = id;
++	}
++
++	public int getId() {
++		return id;
++	}
++
++	public static ComputationTypes getTypeFromId(int id) {
++		return idTypeMap.get(id);
++	}
++
++}
+\ No newline at end of file
+diff --git a/java/gps/node/GPSNodeRunner.java b/java/gps/node/GPSNodeRunner.java
+index 22441d3..24e9c8a 100644
+--- a/java/gps/node/GPSNodeRunner.java
++++ b/java/gps/node/GPSNodeRunner.java
+@@ -3,6 +3,16 @@ package gps.node;
+ import gps.communication.MessageSenderAndReceiverFactory;
+ import gps.communication.mina.MinaMessageSenderAndReceiverFactory;
+ import gps.graph.ArrayBackedGraph;
++// sgps
++import gps.graph.ArrayBackedSubgraph;
++import gps.graph.Subgraph;
++import gps.graph.NullEdgeSubgraphVertex;
++import gps.graph.SubgraphFactory;
++import gps.graph.InnerVertexFactory;
++import gps.messages.storage.ArrayBackedIncomingSubgraphMessageStorage;
++import gps.node.worker.subgraph.AbstractSubgraphWorker;
++import gps.node.worker.subgraph.StaticSubgraphWorkerImpl;
++// sgps
+ import gps.graph.Graph;
+ import gps.graph.Master;
+ import gps.graph.NullEdgeVertex;
+@@ -38,6 +48,22 @@ public class GPSNodeRunner {
+ 
+ 	private static Logger logger = Logger.getLogger(GPSNodeRunner.class);
+ 
++	// sgps
++	public static final String IS_SUBGRAPH_MODE_OPT_NAME = "subgraph";
++	public static final String IS_SUBGRAPH_MODE_SHORT_OPT_NAME = "sub";
++
++	public static final String IS_DIRECTED_GRAPH_OPT_NAME = "directed";
++	public static final String IS_DIRECTED_GRAPH_SHORT_OPT_NAME = "dir";
++	public static final boolean DEFAULT_DIRECTED_GRAPH = false;
++
++	public static final String IS_BATCH_MODE_OPT_NAME = "batchmode";
++	public static final String IS_BATCH_MODE_SHORT_OPT_NAME = "batch";
++
++	public static final String UPDATE_WINDOW_SIZE_OPT_NAME = "window";
++	public static final String UPDATE_WINDOW_SIZE_SHORT_OPT_NAME = "w";
++	public static final int DEFAULT_UPDATE_WINDOW_SIZE = 300;
++	// sgps
++
+ 	public static final int DEFAULT_DYNAMISM_BENEFIT_THRESHOLD = 3;
+ 	public static final int DEFAULT_OUTGOING_BUFFER_SIZES = 100000;
+ 	public static final int DEFAULT_EDGE_THRESHOLD = 15000;
+@@ -150,26 +176,56 @@ public class GPSNodeRunner {
+ 			: DEFAULT_NUM_PROCESSORS_FOR_HANDLING_NETWORK_IO;
+ 		String outputFileName = line.getOptionValue(OUTPUT_FILE_NAME_OPT_NAME);	
+ 		
++		// sgps
++		boolean isSubgraphMode = line.hasOption(IS_SUBGRAPH_MODE_OPT_NAME) ?
++			Boolean.parseBoolean(line.getOptionValue(IS_SUBGRAPH_MODE_OPT_NAME))
++			: false;
++		// sgps
++
+ 		logger.info("JC: " + line.getOptionValue(
+ 			JOB_CONFIGURATION_CLASS_NAME_OPT_NAME));
+ 		String jcStringValue = line.getOptionValue(JOB_CONFIGURATION_CLASS_NAME_OPT_NAME);
+ 		if (jcStringValue.contains("###")) {
+ 			jcStringValue = jcStringValue.replace("###", "$");
+ 		}
+-		GPSJobConfiguration gpsJobConfiguration =
+-			(GPSJobConfiguration) Class.forName(jcStringValue).newInstance();
++		// sgps
++		GPSJobConfiguration gpsJobConfiguration = null;
++		SubgraphJobConfiguration subgraphConfiguration = null;
++		if (isSubgraphMode) {
++			subgraphConfiguration = (SubgraphJobConfiguration) Class.forName(jcStringValue).newInstance();
++		} else 
++		 	gpsJobConfiguration =(GPSJobConfiguration) Class.forName(jcStringValue).newInstance();
++		// sgps
+ 		logger.info("GPSJobConfiguration: " + gpsJobConfiguration);
+ 		if (localMachineId != Utils.MASTER_ID) {
+ 			// Starting GPSWorker
+-			logger.info("Started GPSWorker...");
+-			startGPSWorker(fileSystem, line, messageSenderAndReceiverFactory, localMachineId,
+-				machineConfig, outputFileName, controlMessageWaitTime,
+-				gpsJobConfiguration,
+-				numberOfProcessorsForHandlingNetworkIO);
++			// sgps
++			if (isSubgraphMode) { 
++				startSubgraphWorker(fileSystem, line, messageSenderAndReceiverFactory, localMachineId,
++					machineConfig, outputFileName, controlMessageWaitTime,
++					subgraphConfiguration,
++					numberOfProcessorsForHandlingNetworkIO);
++			} else { 
++				logger.info("Started GPSWorker...");
++				startGPSWorker(fileSystem, line, messageSenderAndReceiverFactory, localMachineId,
++					machineConfig, outputFileName, controlMessageWaitTime,
++					gpsJobConfiguration,
++					numberOfProcessorsForHandlingNetworkIO);
++			}
++			// sgps
+ 		} else {
+-			Master master = (Master)
+-				((Constructor<?>) gpsJobConfiguration.getMasterClass().getConstructor(
+-					CommandLine.class)).newInstance(line);
++			// sgps
++			Master master = null;
++			if (isSubgraphMode) {
++				master = (Master)
++					((Constructor<?>)subgraphConfiguration.getMasterClass().getConstructor(
++						CommandLine.class)).newInstance(line);
++			} else {
++				master = (Master)
++					((Constructor<?>) gpsJobConfiguration.getMasterClass().getConstructor(
++						CommandLine.class)).newInstance(line);
++			}
++			// sgps
+ 			logger.info("Constructing GPSMaster. localMachineId: " + localMachineId);
+ 			String masterOutputFileName = line.hasOption(MASTER_OUTPUT_FILE_NAME_OPT_NAME) ?
+ 				line.getOptionValue(MASTER_OUTPUT_FILE_NAME_OPT_NAME) :
+@@ -182,6 +238,96 @@ public class GPSNodeRunner {
+ 		}
+ 	}
+ 
++	// sgps
++	private static <V extends MinaWritable, E extends MinaWritable, M extends MinaWritable,
++		SV extends MinaWritable, SM extends MinaWritable>
++		void startSubgraphWorker(FileSystem fileSystem, CommandLine line,
++		MessageSenderAndReceiverFactory messageSenderAndReceiverFactory, int localMachineId,
++		MachineConfig machineConfig, String outputFileName, long controlMessagePollingTime,
++		SubgraphJobConfiguration jobConfiguration, int numberOfProcessorsForHandlingNetworkIO) 
++		throws Throwable {
++
++		InnerVertexFactory<V, E, M, SV> vertexFactory = (InnerVertexFactory<V, E, M, SV>)
++			jobConfiguration.getVertexFactoryClass().newInstance();
++		Class<V> vertexRepresentativeInstance =
++			(Class<V>) jobConfiguration.getVertexValueClass();
++		Class<E> edgeRepresentativeInstance =
++			(Class<E>) jobConfiguration.getEdgeValueClass();
++		Class<M> messageRepresentativeInstance =
++			(Class<M>) jobConfiguration.getMessageValueClass();
++
++		SubgraphFactory<V, E, M, SV, SM> subgraphInstance = 
++			(SubgraphFactory<V, E, M, SV, SM>) jobConfiguration.getSubgraphFactoryClass().newInstance();
++		Class<SV> subgraphRepresentativeInstance =
++			(Class<SV>) jobConfiguration.getSubgraphValueClass();
++		Class<SM> subgraphMessageRepresentativeInstance =
++			(Class<SM>) jobConfiguration.getSubgraphMessageValueClass();
++
++		ArrayBackedSubgraph<V, E, SV> graphPartition = 
++			new ArrayBackedSubgraph<V, E, SV>(localMachineId,
++			machineConfig.getWorkerIds().size(), 
++			vertexRepresentativeInstance, vertexFactory.newInstance(line), 
++			edgeRepresentativeInstance,
++			subgraphRepresentativeInstance);
++
++		NullEdgeSubgraphVertex.graphPartition = graphPartition;
++		Subgraph.graphPartition = graphPartition;
++
++		int outgoingDataBufferSizes =
++			line.hasOption(OUTGOING_DATA_BUFFER_SIZES_OPT_NAME) ? Integer
++				.parseInt(line.getOptionValue(OUTGOING_DATA_BUFFER_SIZES_OPT_NAME)) : DEFAULT_OUTGOING_BUFFER_SIZES;
++
++		AbstractSubgraphWorker<V, E, M, SV, SM> gpsWorker = null;
++		ArrayBackedIncomingSubgraphMessageStorage<M, SM> incomingMessageStorage =
++			new ArrayBackedIncomingSubgraphMessageStorage<M, SM>(graphPartition, messageRepresentativeInstance,
++				subgraphMessageRepresentativeInstance,
++				line.hasOption(COMBINE_OPT_NAME), machineConfig.getWorkerIds().size());
++
++
++		int maxMessagesToTransmitConcurrently =
++			line.hasOption(MAX_MESSAGES_TO_TRANSMIT_CONCURRENTLY_OPT_NAME) ?
++			Integer.parseInt(line.getOptionValue(MAX_MESSAGES_TO_TRANSMIT_CONCURRENTLY_OPT_NAME))
++			: DEFAULT_MAX_MESSAGES_TO_TRANSMIT_CONCURRENTLY;
++		int numVerticesFrequencyToCheckOutgoingBuffers = line.hasOption(NUM_VERTICES_FREQUENCY_TO_CHECK_OUTGOING_BUFFERS_OPT_NAME) ?
++			Integer.parseInt(line.getOptionValue(NUM_VERTICES_FREQUENCY_TO_CHECK_OUTGOING_BUFFERS_OPT_NAME)) :
++				DEFAULT_NUM_VERTICES_FREQUENCY_TO_CHECK_OUTGOING_BUFFERS;
++		int sleepTimeWhenOutgoingBuffersExceedThreshold = line.hasOption(SLEEP_TIME_WHEN_OUTGOING_BUFFERS_EXCEED_THRESHOLD_OPT_NAME) ?
++			Integer.parseInt(line.getOptionValue(SLEEP_TIME_WHEN_OUTGOING_BUFFERS_EXCEED_THRESHOLD_OPT_NAME)) :
++				DEFAULT_SLEEP_TIME_WHEN_OUTGOING_BUFFERS_EXCEED_THRESHOLD;
++		int largeVertexPartitioningOutdegreeThreshold = line.hasOption(
++			LARGE_VERTEX_PARTITIONING_OUTDEGREE_THRESHOLD_OPT_NAME) ?
++			Integer.parseInt(line.getOptionValue(LARGE_VERTEX_PARTITIONING_OUTDEGREE_THRESHOLD_OPT_NAME)) :
++				DEFAULT_LARGE_VERTEX_PARTITIONING_OUTDEGREE_THRESHOLD;
++		boolean isNoDataParsing = line.hasOption(IS_NO_DATA_PARSING_OPTS_OPT_NAME) ?
++			Boolean.parseBoolean(line.getOptionValue(IS_NO_DATA_PARSING_OPTS_OPT_NAME)) : false;
++
++		// streaming
++		int update_window_size = 0;
++		if (line.hasOption(UPDATE_WINDOW_SIZE_OPT_NAME)) {
++			update_window_size = Integer.parseInt(line.getOptionValue(UPDATE_WINDOW_SIZE_OPT_NAME));
++		} else {
++			update_window_size = DEFAULT_UPDATE_WINDOW_SIZE;
++		}
++		// streaming
++
++		int graphSize = 100000;
++		gpsWorker = new StaticSubgraphWorkerImpl<V, E, M, SV, SM>(
++				localMachineId, line, fileSystem, machineConfig,
++				graphPartition, vertexFactory, subgraphInstance, graphSize, outgoingDataBufferSizes,  outputFileName,
++				messageSenderAndReceiverFactory, incomingMessageStorage, controlMessagePollingTime,
++				maxMessagesToTransmitConcurrently, numVerticesFrequencyToCheckOutgoingBuffers,
++				sleepTimeWhenOutgoingBuffersExceedThreshold, messageRepresentativeInstance,
++				largeVertexPartitioningOutdegreeThreshold,
++				true /* run partitioning superstep */,
++				line.hasOption(COMBINE_OPT_NAME), messageRepresentativeInstance,
++				subgraphMessageRepresentativeInstance,
++				edgeRepresentativeInstance, jobConfiguration,
++				numberOfProcessorsForHandlingNetworkIO, isNoDataParsing
++			).setNumEdgesInPartition(numEdges);
++
++		gpsWorker.startWorker();
++	}
++
+ 	@SuppressWarnings("unchecked")
+ 	private static <V extends MinaWritable, E extends MinaWritable, M extends MinaWritable>
+ 		void startGPSWorker(FileSystem fileSystem, CommandLine line,
+@@ -326,6 +472,21 @@ public class GPSNodeRunner {
+ 	private static CommandLine parseAndAssertCommandLines(String[] args) {
+ 		CommandLineParser parser = new PosixParser();
+ 		Options options = new Options();
++
++		// sgps
++		options.addOption(IS_SUBGRAPH_MODE_SHORT_OPT_NAME, IS_SUBGRAPH_MODE_OPT_NAME, true,
++			"subgraph centric execution model");
++	
++		options.addOption(IS_DIRECTED_GRAPH_SHORT_OPT_NAME, IS_DIRECTED_GRAPH_OPT_NAME, true,
++			"directed graph");
++
++		options.addOption(IS_BATCH_MODE_SHORT_OPT_NAME, IS_BATCH_MODE_OPT_NAME, true,
++			"batch mode");
++
++		options.addOption(UPDATE_WINDOW_SIZE_OPT_NAME, UPDATE_WINDOW_SIZE_SHORT_OPT_NAME, true,
++			"update window size (sec)");
++		// sgps
++
+ 		options.addOption(Utils.HADOOP_CONF_FILES_SHORT_OPT_NAME, Utils.HADOOP_CONF_FILES_OPT_NAME,
+ 			true, "full path name of the hadoop configuration files that is needed to access hdfs " +
+ 			"programmatically. These are usually the locations of the core-site and/or " +
+diff --git a/java/gps/node/SubgraphJobConfiguration.java b/java/gps/node/SubgraphJobConfiguration.java
+new file mode 100644
+index 0000000..4cdcf71
+--- /dev/null
++++ b/java/gps/node/SubgraphJobConfiguration.java
+@@ -0,0 +1,24 @@
++package gps.node;
++
++public abstract class SubgraphJobConfiguration extends GPSJobConfiguration {
++
++	public abstract Class<?> getSubgraphFactoryClass();
++	public abstract Class<?> getSubgraphClass();
++	public abstract Class<?> getSubgraphValueClass();
++	public abstract Class<?> getSubgraphMessageValueClass();
++	
++	@Override
++	public String toString() {
++		StringBuilder retVal = new StringBuilder();
++		retVal.append("vertexFactoryClass: " + getVertexFactoryClass().getCanonicalName() + "\n");
++		retVal.append("vertexClass: " + getVertexClass().getCanonicalName() + "\n");
++		retVal.append("masterClass: " + getMasterClass().getCanonicalName() + "\n");
++		retVal.append("vertexValueClass: " + getVertexValueClass().getCanonicalName() + "\n");
++		retVal.append("messageValueClass: " + getMessageValueClass().getCanonicalName() + "\n");
++		retVal.append("edgeValueClass: " + getEdgeValueClass().getCanonicalName() + "\n");
++		retVal.append("subgraphClass: " + getSubgraphClass().getCanonicalName() + "\n");
++		retVal.append("subgraphValueClass: " + getSubgraphValueClass().getCanonicalName() + "\n");
++		retVal.append("subgraphMessageValueClass: " + getSubgraphMessageValueClass().getCanonicalName() + "\n");
++		return retVal.toString();
++	}
++}
+diff --git a/java/gps/node/Utils.java b/java/gps/node/Utils.java
+index bb3bb5e..fb54e46 100644
+--- a/java/gps/node/Utils.java
++++ b/java/gps/node/Utils.java
+@@ -12,12 +12,20 @@ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+ 
++// sgps
++import java.net.InetAddress;
++import gps.graph.ArrayBackedSubgraph;
++// sgps
++
+ import org.apache.commons.cli.CommandLine;
+ import org.apache.hadoop.conf.Configuration;
+ import org.apache.hadoop.fs.FileSystem;
+ import org.apache.hadoop.fs.Path;
+ import org.apache.log4j.Logger;
+ 
++import org.apache.commons.net.ntp.NTPUDPClient;
++import org.apache.commons.net.ntp.TimeInfo;
++
+ /**
+  * A collection of utility methods abstracted to a Utils class to make testing easier.
+  * 
+@@ -112,6 +120,33 @@ public class Utils {
+ 		bw.close();
+ 	}
+ 
++	// sgps
++	public static void writeChangeVertexValues(FileSystem fileSystem, ArrayBackedSubgraph graphPartition,
++        String snapshotFile) throws IOException {
++        BufferedWriter bw = getBufferedWriter(fileSystem, snapshotFile);
++        int originalIdOfLocalId;
++        for (int localId = 0; localId < graphPartition.size(); ++localId) {
++            originalIdOfLocalId = graphPartition.getOriginalIdOfLocalId(localId);
++            if (graphPartition.isUpdated(localId) == false)
++                continue;
++            graphPartition.setIsUpdated(localId, true);
++            if (originalIdOfLocalId >= 0) {
++                bw.write("" + originalIdOfLocalId + " "
++                    + graphPartition.getValueOfLocalId(localId) + "\n");
++            }
++        }
++        bw.close();
++    }
++
++    public static void writeChangeTopology(FileSystem fileSystem, ArrayList<String> changeEvents,
++        String topologyFile) throws IOException {
++        BufferedWriter bw = getBufferedWriter(fileSystem, topologyFile);
++        for (int i = 0; i < changeEvents.size(); ++i)
++            bw.write(changeEvents.get(i) + "\n");
++        bw.close();
++    }
++    // sgps
++
+     // Note(hongsup): Adding helper functions to parse byte array.
+     // TODO(semih, hongsup): Test that these helper methods work correctly. Semih just
+ 	// fixed a few compiler bugs but didn't test that they work.
+@@ -216,4 +251,29 @@ public class Utils {
+ 		return new BufferedWriter(
+ 			new OutputStreamWriter(fileSystem.create(new Path(outputFile))));
+ 	}
++
++	// sgps
++	  public static long getNTPDate() {
++        String[] hosts = new String[]{
++            "129.6.15.30", "98.175.203.200"};
++        NTPUDPClient client = new NTPUDPClient();
++//      client.setDefaultTimeout(5000);
++        for (String host : hosts) {
++            try {
++                InetAddress hostAddr = InetAddress.getByName(host);
++                TimeInfo timeInfo = client.getTime(hostAddr);
++                long returnTime = timeInfo.getMessage().getTransmitTimeStamp().getTime();
++                return returnTime;
++            }
++            catch (IOException e) {
++                e.printStackTrace();
++            }
++        }
++
++        client.close();
++
++        return -1;
++
++    }
++	// sgps
+ }
+diff --git a/java/gps/node/master/GPSMaster.java b/java/gps/node/master/GPSMaster.java
+index a3ed77c..e49a93a 100644
+--- a/java/gps/node/master/GPSMaster.java
++++ b/java/gps/node/master/GPSMaster.java
+@@ -29,6 +29,11 @@ import gps.node.MachineStats.StatName;
+ import gps.node.master.monitoring.Server;
+ import gps.node.master.monitoring.ServerHandler;
+ import gps.node.worker.GPSWorkerExposedGlobalVariables;
++// sgps
++import gps.node.ComputationTypes;
++import gps.writable.IntWritable;
++import gps.globalobjects.IntOverwriteGlobalObject;
++// sgps
+ import gps.writable.MinaWritable;
+ 
+ import org.apache.commons.cli.CommandLine;
+@@ -146,6 +151,17 @@ public class GPSMaster extends AbstractGPSNode {
+ 			machineConfig.getWorkerIds().size(), machineStatsForMaster);
+ 		GlobalObjectsMap globalObjectsMap = parseGlobalObjectsMessages(superstepNo,
+ 			null /* don't add anything to machineStats */);
++		
++		// sgps
++		globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.COMPUTE).getId()));
++		globalObjectsMap.putOrUpdateGlobalObject("num-Of-Stable-Vertices", new IntSumGlobalObject(0));
++		globalObjectsMap.putOrUpdateGlobalObject("num-Of-Recompute-Signals", new IntSumGlobalObject(0));
++		globalObjectsMap.putOrUpdateGlobalObject("num-Of-Update-Event", new IntSumGlobalObject(0));
++		globalObjectsMap.putOrUpdateGlobalObject("num-Of-Stop-Signals", new IntSumGlobalObject(0));
++		boolean batchMode = line.hasOption(GPSNodeRunner.IS_BATCH_MODE_OPT_NAME) ?
++			Boolean.parseBoolean(line.getOptionValue(GPSNodeRunner.IS_BATCH_MODE_OPT_NAME)) : true;
++		// sgps
++
+ 		waitForAllControlMessagesToBeReceivedOrSent(-1,
+ 			controlMessageStats, ControlMessageType.READY_TO_START_COMPUTATION,
+ 			machineConfig.getWorkerIds().size(), machineStatsForMaster);
+@@ -158,7 +174,36 @@ public class GPSMaster extends AbstractGPSNode {
+ 			Master.globalObjectsMap = globalObjectsMap;
+ 			setMasterGraphSize(globalObjectsMap);
+ 			dumpGlobalObjects(globalObjectsMap, superstepNo);
+-			master.compute(superstepNo);
++			
++			// sgps
++			ComputationTypes computationStage = ComputationTypes.getTypeFromId(
++            ((IntWritable) globalObjectsMap.getGlobalObject(
++            "computation-stage").getValue()).getValue());
++
++			switch (computationStage) {
++				case COMPUTE:
++                    logger.info("COMPUTE");
++                    master.compute(superstepNo);
++                    break;
++                case INCREMENTAL_COMPUTE:
++                    logger.info("INC COMPUTE");
++                    master.incremental_compute(superstepNo);
++                    break;
++                case CONVERGE_CHECKING:
++                    logger.info("CONVERGE");
++                    break;
++                case RECOMPUTE_SETUP:
++                    logger.info("SETUP");
++                    master.setup();
++                    break;
++                case WAITING:
++                    logger.info("WAITING");
++                    break;
++                default:
++                    break;
++			}
++			// sgps
++
+ 			// TODO(semih): We do a redundant thing here by sending global objects
+ 			// to workers even if we're going to stop computation.
+ 			renameDefaultGlobalObjects(globalObjectsMap);
+@@ -193,6 +238,9 @@ public class GPSMaster extends AbstractGPSNode {
+ 				machineConfig.getWorkerIds().size(), machineStatsForMaster);
+ 			machineStatsForMaster.updateStat(StatName.TOTAL_TIME, superstepNo,
+ 				(double) (System.currentTimeMillis() - superstepStartTime), Utils.MASTER_ID);
++			// sgps
++			stageMovementChecking(globalObjectsMap, batchMode); 
++			// sgps
+ 			logger.info("total time for superstepNo: " + superstepNo + ": " +
+ 				(System.currentTimeMillis() - superstepStartTime));
+ 			superstepNo++;
+@@ -208,6 +256,72 @@ public class GPSMaster extends AbstractGPSNode {
+ 		System.exit(-1);
+ 	}
+ 
++	// sgps
++	private void stageMovementChecking(GlobalObjectsMap globalObjectsMap, boolean batchMode) {
++		int numOfStableVertices = ((IntWritable) globalObjectsMap.getGlobalObject(
++                "num-Of-Stable-Vertices").getValue()).getValue();
++
++        int numOfRecomputeSingal = ((IntWritable) globalObjectsMap.getGlobalObject(
++                "num-Of-Recompute-Signals").getValue()).getValue();
++
++        int numOfUpdateEvent = ((IntWritable) globalObjectsMap.getGlobalObject(
++        		"num-Of-Update-Event").getValue()).getValue();
++
++        int numOfStopSignal = ((IntWritable) globalObjectsMap.getGlobalObject(
++                "num-Of-Stop-Signals").getValue()).getValue();
++
++        int totalVertices = ((IntWritable) globalObjectsMap.getGlobalObject(
++        		GlobalObjectsMap.NUM_VERTICES).getValue()).getValue();
++
++        ComputationTypes computationStage = ComputationTypes.getTypeFromId(
++            ((IntWritable) globalObjectsMap.getGlobalObject(
++            "computation-stage").getValue()).getValue());
++
++        logger.info("num-of-vote-to-stable " + numOfStableVertices);
++        switch (computationStage) {
++        	case COMPUTE:
++        		if (numOfStableVertices == totalVertices)
++        			globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.WAITING).getId()));
++        		break;
++        	case INCREMENTAL_COMPUTE: 
++        		if (numOfStableVertices == totalVertices)
++        			globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.WAITING).getId()));
++        		break;
++        	case CONVERGE_CHECKING: 
++        		if (numOfStableVertices == totalVertices) {
++        			if (numOfRecomputeSingal > 0) { 
++        				globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.RECOMPUTE_SETUP).getId()));
++        				globalObjectsMap.removeGlobalObject("num-Of-Recompute-Signals");
++        				globalObjectsMap.putGlobalObject("num-Of-Recompute-Signals", new IntSumGlobalObject(0));
++        			} else {
++        				globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.WAITING).getId()));
++        			}
++        		}
++        		break;
++        	case RECOMPUTE_SETUP: 
++        		if (batchMode)
++        			globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.COMPUTE).getId()));
++        		else 
++        			globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.INCREMENTAL_COMPUTE).getId()));
++        		break;
++        	case WAITING:
++        		if (numOfUpdateEvent > 0) {
++        			globalObjectsMap.putOrUpdateGlobalObject("computation-stage", new IntOverwriteGlobalObject((ComputationTypes.CONVERGE_CHECKING).getId()));
++        			globalObjectsMap.removeGlobalObject("num-Of-Update-Event");
++        			globalObjectsMap.putGlobalObject("num-Of-Update-Event", new IntSumGlobalObject(0));
++        		}
++        		if (numOfStopSignal > 0) {
++                    master.continueComputation = false;
++                }
++                globalObjectsMap.removeGlobalObject("num-Of-Stop-Signals");
++                globalObjectsMap.putGlobalObject("num-Of-Stop-Signals", new IntSumGlobalObject(0));
++        		break;
++        }
++        
++        globalObjectsMap.removeGlobalObject("num-Of-Stable-Vertices");
++        globalObjectsMap.putGlobalObject("num-Of-Stable-Vertices", new IntSumGlobalObject(0));
++	}
++
+ 	private void setMasterGraphSize(GlobalObjectsMap globalObjectsMap) {
+ 		GlobalObject<? extends MinaWritable> numVerticesGlobalObject =
+ 			globalObjectsMap.getGlobalObject(GlobalObjectsMap.NUM_VERTICES);
+diff --git a/java/gps/node/worker/StaticGPSMessageSender.java b/java/gps/node/worker/StaticGPSMessageSender.java
+index f21431b..0ce89c7 100644
+--- a/java/gps/node/worker/StaticGPSMessageSender.java
++++ b/java/gps/node/worker/StaticGPSMessageSender.java
+@@ -26,6 +26,9 @@ public class StaticGPSMessageSender implements MessageSender {
+ 	private final int outgoingBufferSizes;
+ 	protected final MessageSenderAndReceiverForWorker messageSenderAndReceiverForWorker;
+ 	private List<Integer> allWorkerIds;
++	// sgps
++	public boolean isCompress;
++	// sgps
+ 
+ 	public StaticGPSMessageSender(MachineConfig machineConfig, int outgoingBufferSizes,
+ 		MessageSenderAndReceiverForWorker messageSenderAndReceiverForWorker) {
+@@ -39,6 +42,11 @@ public class StaticGPSMessageSender implements MessageSender {
+ 		this.allWorkerIds = new LinkedList<Integer>(getMachineConfig().getWorkerIds());
+ 	}
+ 
++	// sgps
++	public void setIsCompress(boolean isCompress) {
++		this.isCompress = isCompress;
++	}
++
+ 	public void sendDataMessage(MinaWritable messageValue, int toNodeId) {
+ 		int machineIdOfNeighbor = toNodeId % getNumWorkers();
+ 		putMessageToIoBuffer(outgoingDataBuffersMap, messageValue, toNodeId,
+@@ -98,14 +106,20 @@ public class StaticGPSMessageSender implements MessageSender {
+ 		messageValue.write(ioBuffer);
+ 	}
+ 
+-	protected void sendRemainingInitialVertexPartitionings() {
++	// sgps
++	public void sendRemainingInitialVertexPartitionings() {
+ 		sendRemainingIoBuffers(outgoingDataBuffersMap, MessageTypes.INITIAL_VERTEX_PARTITIONING,
+ 			false /* don't skip local machine id */);
+ 	}
+ 
+-	protected void sendRemainingDataBuffers() {
+-		sendRemainingIoBuffers(outgoingDataBuffersMap, MessageTypes.DATA,
+-			false /* don't skip local machine id */);
++	// sgps
++	public void sendRemainingDataBuffers() {
++		if (isCompress) 
++			sendRemainingIoBuffers(outgoingDataBuffersMap, MessageTypes.COMPRESS_VERTEX_DATA,
++				false);
++		else
++			sendRemainingIoBuffers(outgoingDataBuffersMap, MessageTypes.DATA,
++				false /* don't skip local machine id */);
+ 	}
+ 
+ 	protected void sendRemainingIoBuffers(Map<Integer, IoBuffer> ioBufferMap, MessageTypes type,
+diff --git a/java/gps/node/worker/subgraph/AbstractSubgraphWorker.java b/java/gps/node/worker/subgraph/AbstractSubgraphWorker.java
+new file mode 100644
+index 0000000..5b6a614
+--- /dev/null
++++ b/java/gps/node/worker/subgraph/AbstractSubgraphWorker.java
+@@ -0,0 +1,1131 @@
++package gps.node.worker.subgraph;
++
++import gps.communication.MessageSenderAndReceiverForWorker;
++import gps.communication.MessageSenderAndReceiverFactory;
++import gps.communication.mina.worker.MinaMessageSenderAndReceiverForWorker;
++
++import gps.globalobjects.GlobalObjectsMap;
++import gps.globalobjects.IntSumGlobalObject;
++
++import gps.graph.ArrayBackedSubgraph;
++import gps.graph.NullEdgeSubgraphVertex;
++import gps.graph.Subgraph;
++import gps.graph.InnerVertex;
++import gps.graph.InnerVertexFactory;
++import gps.graph.SubgraphFactory;
++
++import gps.messages.IncomingBufferedMessage;
++import gps.messages.MessageTypes;
++import gps.messages.MessageUtils;
++import gps.messages.OutgoingBufferedMessage;
++import gps.messages.storage.ArrayBackedIncomingSubgraphMessageStorage;
++
++import gps.node.AbstractGPSNode;
++import gps.node.ControlMessagesStats;
++import gps.node.SubgraphJobConfiguration;
++import gps.node.InputSplit;
++import gps.node.MachineConfig;
++import gps.node.Pair;
++import gps.node.StatusType;
++import gps.node.Utils;
++import gps.node.ControlMessagesStats.ControlMessageType;
++import gps.node.MachineStats.StatName;
++
++import gps.node.ComputationTypes;
++import gps.node.GPSNodeRunner;
++
++import gps.writable.MinaWritable;
++import gps.writable.NullWritable;
++
++import java.io.IOException;
++import java.io.InputStreamReader;
++
++import java.nio.charset.CharacterCodingException;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Map;
++import java.util.Random;
++import java.util.Set;
++
++import java.util.Queue;
++import java.util.concurrent.ConcurrentLinkedQueue;
++
++import java.util.concurrent.BlockingQueue;
++import java.util.concurrent.LinkedBlockingQueue;
++
++import org.apache.commons.cli.CommandLine;
++import org.apache.hadoop.fs.FileSystem;
++import org.apache.hadoop.fs.Path;
++import org.apache.log4j.Logger;
++import org.apache.mina.core.buffer.IoBuffer;
++
++import com.rabbitmq.client.*;
++import gps.writable.IntWritable;
++
++import static gps.node.worker.GPSWorkerExposedGlobalVariables.*;
++
++/**
++ * Modify from AbstractGPSWorker
++ */
++public abstract class AbstractSubgraphWorker<V extends MinaWritable, E extends MinaWritable,
++	M extends MinaWritable, SV extends MinaWritable, SM extends MinaWritable> extends AbstractGPSNode {
++
++	private static final String EXCHANGE_NAME = "direct_msgs";
++    private static Queue<String> buffer;
++    private static String masterHostName;
++    
++    private long baseline;
++    private long windowSize;
++    private boolean directed;
++    private boolean batchMode;
++    private boolean tookSnapshot;
++
++	protected static volatile MessageSenderAndReceiverForWorker messageSenderAndReceiver;
++	protected int numEdgesInPartition;
++	protected static int outgoingBufferSizes;
++	protected ArrayBackedIncomingSubgraphMessageStorage<M, SM> incomingMessageStorage;
++	protected ArrayBackedSubgraph<V, E, SV> graphPartition;
++	protected final BlockingQueue<IncomingBufferedMessage> incomingBufferedDataAndControlMessages;
++	protected ControlMessagesStats controlMessageStats;
++	protected int numActiveNodesForNextSuperstep;
++	protected int numStableNodesForNextSuperstep;
++	protected int numRecomputeSingalForNextSuperstep;
++	protected int numOfUpdateEvent;
++	protected int numOfVoteToHalt;
++	private final String outputFileName;
++	protected int numPreviouslyActiveNodes;
++	private int numNodesMadeActiveByIncomingMessages;
++	protected InnerVertex<V, E, M, SV> vertex;
++	protected Subgraph<V, E, M, SV, SM> subgraph;
++	protected final int maxMessagesToTransmitConcurrently;
++	protected final int numVerticesFrequencyToCheckOutgoingBuffers;
++	protected final int sleepTimeWhenOutgoingBuffersExceedThreshold;
++	protected int totalSleepTimeForNetworkToSendMessages;
++	protected int largeVertexPartitioningOutdegreeThreshold;
++	private GlobalObjectsMap globalObjectsMap;
++	protected Set<Integer> localLargeVertices;
++	private final boolean runPartitioningSuperstep;
++	private final Class<M> messageRepresentativeInstance;
++	private final Class<SM> subgraphMessageRepresentativeInstance;
++	private final boolean combine;
++	private final Random random;
++	public static int numIncomingMessages;
++	public long previousTotalSuperstepTotalNetworkSendingTimes = 0;
++	
++	// Below two objects are used when the edges or the vertices have
++	// default values.
++	private final Class<E> representativeEdgeClassForParsingInput;
++	private final SubgraphJobConfiguration jobConfiguration;
++
++	/**
++	 * Constructor for {@link AbstractGPSWorker}.
++	 * 
++	 * @param localmachineId id of this machine
++	 * @param machineConfig config file describing the setup of the cluster
++	 * @param graphPartition representation of the graph partition in adjacency list format
++	 * @param vertexFactory factory class to construct new vertices when necessary
++	 * @param graphSize size of the entire graph (this worker has only a partition of the vertices.)
++	 * @param outgoingBufferSizes sizes of the buffers keeping outgoing data
++	 * @param outputFileName where to output the results.
++	 * @param messageSenderAndReceiverFactory factory class to create an instance of
++	 *            {@link MessageSenderAndReceiverForWorker}.
++	 * @param incomingMessageStorage class used to store incoming messages.
++	 * @param pollingTime pollingTime for both control messages and during failures of connection
++	 *            establishing.
++	 */
++	public AbstractSubgraphWorker(int localMachineId, CommandLine commandline, FileSystem fileSystem,
++		MachineConfig machineConfig, ArrayBackedSubgraph<V, E, SV> graphPartition,
++		InnerVertexFactory<V, E, M, SV> vertexFactory, SubgraphFactory<V, E, M, SV, SM> subgraphInstance,
++		int graphSize, int outgoingBufferSizes,
++		String outputFileName, MessageSenderAndReceiverFactory messageSenderAndReceiverFactory,
++		ArrayBackedIncomingSubgraphMessageStorage<M, SM> incomingMessageStorage, long pollingTime,
++		int maxMessagesToTransmitConcurrently, int numVerticesFrequencyToCheckOutgoingBuffers,
++		int sleepTimeWhenOutgoingBuffersExceedThreshold, int largeVertexPartitioningOutdegreeThreshold,
++		boolean runPartitioningSuperstep, boolean combine, 
++		Class<M> messageRepresentativeInstance, Class<SM> subgraphMessageRepresentativeInstance, 
++		Class<E> representativeEdgeClassForParsingInput,
++		SubgraphJobConfiguration jobConfiguration,
++		int numProcessorsForHandlingIO) {
++
++		super(fileSystem, pollingTime);
++
++		this.graphPartition = graphPartition;
++		this.maxMessagesToTransmitConcurrently = maxMessagesToTransmitConcurrently;
++		this.runPartitioningSuperstep = runPartitioningSuperstep;
++		this.combine = combine;
++		this.messageRepresentativeInstance = messageRepresentativeInstance;
++		this.subgraphMessageRepresentativeInstance = subgraphMessageRepresentativeInstance;
++		this.representativeEdgeClassForParsingInput = representativeEdgeClassForParsingInput;
++		this.jobConfiguration = jobConfiguration;
++		initVariables(localMachineId, machineConfig,
++			graphPartition.size(), graphSize);
++		AbstractSubgraphWorker.outgoingBufferSizes = outgoingBufferSizes;
++		this.outputFileName = outputFileName;
++		this.controlMessageStats = new ControlMessagesStats();
++		this.incomingBufferedDataAndControlMessages =
++			new LinkedBlockingQueue<IncomingBufferedMessage>();
++		AbstractSubgraphWorker.messageSenderAndReceiver =
++			messageSenderAndReceiverFactory.newInstanceForWorker(machineConfig, localMachineId,
++				incomingBufferedDataAndControlMessages, controlMessageStats, pollingTime,
++				gpsWorkerMessages, machineStats, gpsNodeExceptionNotifier,
++				maxMessagesToTransmitConcurrently, numProcessorsForHandlingIO);
++		this.incomingMessageStorage = incomingMessageStorage;
++
++		this.subgraph = subgraphInstance.newInstance(commandline);
++		this.vertex = vertexFactory.newInstance(commandline);
++		this.numVerticesFrequencyToCheckOutgoingBuffers = numVerticesFrequencyToCheckOutgoingBuffers;
++		this.sleepTimeWhenOutgoingBuffersExceedThreshold = sleepTimeWhenOutgoingBuffersExceedThreshold;
++		this.largeVertexPartitioningOutdegreeThreshold = largeVertexPartitioningOutdegreeThreshold;
++		this.localLargeVertices = new HashSet<Integer>();
++		this.random = new Random(localMachineId);
++		this.globalObjectsMap = new GlobalObjectsMap();
++
++		this.masterHostName = machineConfig.getHostPortPair(Utils.MASTER_ID).fst;
++		this.windowSize = Long.parseLong(commandline.getOptionValue(GPSNodeRunner.UPDATE_WINDOW_SIZE_OPT_NAME));
++		this.directed = commandline.hasOption(GPSNodeRunner.IS_DIRECTED_GRAPH_OPT_NAME) ?
++			Boolean.parseBoolean(commandline.getOptionValue(GPSNodeRunner.IS_DIRECTED_GRAPH_OPT_NAME)) : false;
++		this.batchMode = commandline.hasOption(GPSNodeRunner.IS_BATCH_MODE_OPT_NAME) ? 
++			Boolean.parseBoolean(commandline.getOptionValue(GPSNodeRunner.IS_BATCH_MODE_OPT_NAME)) : true;
++	}
++
++	public void startWorker() throws Throwable {
++		try {
++            buffer = new ConcurrentLinkedQueue<String>();
++
++            ConnectionFactory factory = new ConnectionFactory();
++            factory.setHost(masterHostName);
++            Connection connection = factory.newConnection();
++            Channel channel = connection.createChannel();
++
++            channel.exchangeDeclare(EXCHANGE_NAME, "direct");
++            String queueName = channel.queueDeclare().getQueue();
++
++            channel.queueBind(queueName, EXCHANGE_NAME, Integer.toString(getLocalMachineId()));
++
++            Consumer consumer = new DefaultConsumer(channel) {
++            @Override
++            public void handleDelivery(String consumerTag, Envelope envelope,
++                                 AMQP.BasicProperties properties, byte[] body) throws IOException {
++                String message = new String(body, "UTF-8");
++                System.out.println(" [x] Received '" + envelope.getRoutingKey() + "':'" + message + "'");
++                dowork(message);
++            }
++            };
++            channel.basicConsume(queueName, true, consumer);
++
++			Subgraph.messageSender = getMessageSender();
++			NullEdgeSubgraphVertex.messageSender = getMessageSender();
++			NullEdgeSubgraphVertex.random = random;
++
++			getLogger().info("Starting Subgraph Worker. localMachineId: " + getLocalMachineId());
++
++			messageSenderAndReceiver.startEstablishingAllConnections();
++			startMessageParserThreads();
++			messageSenderAndReceiver.finishEstablishingAllConnections();
++		
++			getLogger().info("runpartitioningsuperstep: " + runPartitioningSuperstep);
++			if (runPartitioningSuperstep) {
++				messageSenderAndReceiver.sendStatusUpdateToMaster(-1,
++					StatusType.DOING_INITIAL_VERTEX_PARTITIONING);
++				parseInputSplits();
++			}
++		
++			machineStats.updateGlobalStat(StatName.START_TIME, System.currentTimeMillis());
++			if (largeVertexPartitioningOutdegreeThreshold > 0) {
++				doLargeVertexPartitioning();
++			}
++			
++			Subgraph.incomingMessageStorage = this.incomingMessageStorage;
++
++			Runtime.getRuntime().gc();
++			setupIncomingStorageForFisrtSuperstep();
++			
++			sendGlobalObjectsToMaster(graphPartition.size() /* num active vertices */,
++				0 /* current superstep no */);
++			messageSenderAndReceiver.sendStatusUpdateToMaster(-1,
++			StatusType.READY_TO_DO_COMPUTATION);
++			currentSuperstepNo = 1;
++			boolean continueComputation = waitForGOAndContinueComputationMessageFromMasterAndParseGOs();
++			getLogger().info("received continue computation message: continueComputation: "
++				+ continueComputation);
++
++			// TODO init subgraph value
++			baseline = System.currentTimeMillis() / 1000;
++			getMessageSender().setIsCompress(false);
++			tookSnapshot = true;
++			while (continueComputation) {
++
++				machineStats.updateStatForSuperstep(StatName.SUPERSTEP_START_TIME,
++					currentSuperstepNo, (double) System.currentTimeMillis());
++
++				setNumEdgesInPartition(graphPartition.getNumEdges());
++				
++				incomingMessageStorage.startingSuperstep();
++				
++				getLogger().info("machineId: " + getLocalMachineId() + " starting superstepNo: "
++					+ currentSuperstepNo + " vertexSize: " + graphPartition.size()
++					+ " edgeSize:" + graphPartition.getNumEdges());
++
++
++				numActiveNodesForNextSuperstep = 0;
++				numStableNodesForNextSuperstep = 0;
++				numRecomputeSingalForNextSuperstep = 0;
++				numOfUpdateEvent = 0;
++				numPreviouslyActiveNodes = 0;
++				numNodesMadeActiveByIncomingMessages = 0;
++
++				machineStats.updateStatForSuperstep(StatName.NUM_VERTICES, currentSuperstepNo,
++					(double) graphPartition.size());
++				messageSenderAndReceiver.sendBufferedMessage(
++					getStatusUpdateMessage(StatusType.DOING_COMPUTATION), Utils.MASTER_ID);
++				
++
++				totalSleepTimeForNetworkToSendMessages = 0;
++				long timeBefore = System.currentTimeMillis();
++				doExtraWorkBeforeStartingSuperstep();
++				machineStats.updateStatForSuperstep(
++					StatName.TOTAL_DO_EXTRA_WORK_BEFORE_SUPERSTEP_COMPUTATION_TIME,
++					currentSuperstepNo, (double) (System.currentTimeMillis() - timeBefore));
++				
++
++				doSuperstepComputation();
++
++				doExtraWorkAfterFinishingSuperstepComputation();
++
++
++				machineStats.updateStatForSuperstep(StatName.TOTAL_DO_SUPERSTEP_COMPUTATION_TIME,
++					currentSuperstepNo, (System.currentTimeMillis() - machineStats.getStatValue(
++						StatName.SUPERSTEP_START_TIME, currentSuperstepNo)));
++
++				
++				getMessageSender().sendRemainingDataBuffers();
++
++				
++				machineStats.updateStatForSuperstep(StatName.NUM_EDGES, currentSuperstepNo,
++					(double) graphPartition.getNumEdges());
++				machineStats.updateStatForSuperstep(StatName.EDGE_DENSITY, currentSuperstepNo,
++					machineStats.getStatValue(StatName.NUM_EDGES, currentSuperstepNo)
++						/ machineStats.getStatValue(StatName.NUM_VERTICES, currentSuperstepNo));
++				messageSenderAndReceiver
++					.sendFinalDataSentControlMessagesToAllWorkers(currentSuperstepNo);
++
++
++				messageSenderAndReceiver.sendBufferedMessage(
++					getStatusUpdateMessage(StatusType.WAITING_FOR_FINAL_DATA_MESSAGES_TO_BE_SENT),
++					Utils.MASTER_ID);
++				waitForAllControlMessagesToBeReceivedOrSent(currentSuperstepNo,
++					controlMessageStats, ControlMessageType.SENT_FINAL_DATA_SENT_MESSAGES,
++					getNumWorkers() - 1, machineStats);
++				machineStats.updateStatForSuperstep(
++					StatName.TOTAL_TIME_UNTIL_SENDING_ALL_FINAL_DATA_SENT_MESSAGES,
++					currentSuperstepNo, (System.currentTimeMillis() - machineStats.getStatValue(
++						StatName.SUPERSTEP_START_TIME, currentSuperstepNo)));
++
++
++				messageSenderAndReceiver.sendBufferedMessage(
++					getStatusUpdateMessage(StatusType.WAITING_FOR_FINAL_DATA_MESSAGES_TO_BE_RECEIVED),
++						Utils.MASTER_ID);
++				waitForAllControlMessagesToBeReceivedOrSent(currentSuperstepNo,
++					controlMessageStats, ControlMessageType.RECEIVED_FINAL_DATA_SENT_MESSAGES,
++					getNumWorkers(), machineStats);
++				machineStats.updateStatForSuperstep(
++					StatName.TOTAL_TIME_UNTIL_RECEIVING_ALL_FINAL_DATA_SENT_MESSAGES,
++					currentSuperstepNo, (System.currentTimeMillis() - machineStats.getStatValue(
++						StatName.SUPERSTEP_START_TIME, currentSuperstepNo)));
++
++
++				messageSenderAndReceiver.sendBufferedMessage(
++					getStatusUpdateMessage(StatusType.DOING_EXTRA_WORK_AFTER_RECEIVING_FINAL_DATA_MESSAGES),
++					Utils.MASTER_ID);
++				timeBefore = System.currentTimeMillis();
++				doExtraWorkAfterReceivingAllFinalDataSentMessages();
++				machineStats.updateStatForSuperstep(
++					StatName.TOTAL_DO_EXTRA_WORK_AFTER_RECEIVING_ALL_FINAL_DATA_MESSAGES_TIME,
++					currentSuperstepNo, (System.currentTimeMillis() - machineStats.getStatValue(
++						StatName.SUPERSTEP_START_TIME, currentSuperstepNo)));
++
++
++				countAndExportTotalMessageSendingTimeToAllWorkers();
++
++
++				getMachineStats().updateStatForSuperstep(
++					StatName.NUM_ACTIVE_NODES_FOR_THIS_SUPERSTEP, getCurrentSuperstepNo(),
++					(double) numPreviouslyActiveNodes + numNodesMadeActiveByIncomingMessages);
++				getMachineStats().updateStatForSuperstep(StatName.NUM_PREVIOUSLY_ACTIVE_NODES,
++					getCurrentSuperstepNo(), (double) numPreviouslyActiveNodes);
++				machineStats.updateStatForSuperstep(StatName.NUM_ACTIVE_NODES_FOR_NEXT_SUPERSTEP,
++					currentSuperstepNo, (double) numActiveNodesForNextSuperstep);
++				getMachineStats().updateStatForSuperstep(
++				StatName.DATA_PARSER_TIME_SPENT_ON_ADD_MESSAGE_TO_QUEUES, currentSuperstepNo,
++				(double) SubgraphDataAndControlMessagesParserThread.dataParserTimeSpentOnAddMessages[currentSuperstepNo]);
++				sendGlobalObjectsToMaster(numActiveNodesForNextSuperstep, currentSuperstepNo);
++				// TODO understand sendGlobalObjectesToMaster
++				incomingMessageStorage.setNextSuperstepQueueMapAndIndices(currentSuperstepNo + 1);
++			
++
++				messageSenderAndReceiver.sendBufferedMessage(
++					constructEndOfSuperstepStatusUpdateMessage(currentSuperstepNo),
++					Utils.MASTER_ID);
++				machineStats.updateStatForSuperstep(StatName.TOTAL_TIME, currentSuperstepNo,
++					(System.currentTimeMillis() - machineStats.getStatValue(
++						StatName.SUPERSTEP_START_TIME, currentSuperstepNo)));
++
++				currentSuperstepNo++;
++				continueComputation = waitForGOAndContinueComputationMessageFromMasterAndParseGOs();
++
++			}
++			machineStats.updateGlobalStat(StatName.END_TIME_BEFORE_WRITING_OUTPUT,
++				System.currentTimeMillis());
++			machineStats.updateGlobalStat(StatName.TOTAL_TIME_BEFORE_WRITING_OUTPUT,
++				(machineStats.getStatValue(StatName.END_TIME_BEFORE_WRITING_OUTPUT)
++					- machineStats.getStatValue(StatName.START_TIME)));
++			getLogger().info("TotalTimeBeforeWritingResults: "
++				+ machineStats.getStatValue(StatName.TOTAL_TIME_BEFORE_WRITING_OUTPUT));
++			getLogger().info("Writing vertex values...");
++
++
++			Utils.writeVertexValues(fileSystem, graphPartition, outputFileName);
++
++			
++			machineStats.updateGlobalStat(StatName.END_TIME_AFTER_WRITING_OUTPUT,
++				System.currentTimeMillis());
++			machineStats.updateGlobalStat(StatName.TOTAL_TIME_AFTER_WRITING_OUTPUT,
++				(machineStats.getStatValue(StatName.END_TIME_AFTER_WRITING_OUTPUT)
++					- machineStats.getStatValue(StatName.START_TIME)));
++			machineStats.logGlobalStats();
++
++
++			getLogger().info("Dumping machine sending time statistics:");
++			MinaMessageSenderAndReceiverForWorker.dumpAverageSendTimeStatistics();
++			getLogger().info("End of dumping machine sending time statistics:");
++
++			
++			getLogger().info("Finished writing values. Exiting...");
++			messageSenderAndReceiver.closeServerSocket();
++			System.exit(-1);
++		} catch (Exception e) {
++			messageSenderAndReceiver.sendBufferedMessage(
++				MessageUtils.constructExceptionStatusUpdateMessage(e), Utils.MASTER_ID);
++			throw e;
++		}
++	}
++
++	private void setupIncomingStorageForFisrtSuperstep() {
++		getLogger().info("calling setNextSuperstepQueueMapAndIndices for the first superstep...");
++		incomingMessageStorage.setNextSuperstepQueueMapAndIndices(1);
++	}
++
++	private void sendGlobalObjectsToMaster(int numActiveVertices, int currentSuperstepNo)
++		throws CharacterCodingException {
++		putDefaultGlobalObjects(numActiveVertices);
++		removeTotalGlobalObjects();
++		getLogger().info("Sending GLOBAL_OBJECTS_VARIABLES_MESSAGE.. superstepNo: " +
++			currentSuperstepNo);
++		messageSenderAndReceiver.sendBufferedMessage(constructGlobalObjectsMessage(
++			currentSuperstepNo, globalObjectsMap), Utils.MASTER_ID);
++		getLogger().info("Sent GLOBAL_OBJECTS_VARIABLES_MESSAGE.. superstepNo: " +
++			currentSuperstepNo);
++	}
++
++	private void countAndExportTotalMessageSendingTimeToAllWorkers() {
++		long totalNetworkSendingTimeInMillis = 0;
++		for (int i = 0;
++			i < MinaMessageSenderAndReceiverForWorker.totalDataMessageSendingTimesForEachWorker.length; ++i) {
++			if (i == getLocalMachineId()) {
++				continue;
++			}
++			totalNetworkSendingTimeInMillis +=
++				MinaMessageSenderAndReceiverForWorker.totalDataMessageSendingTimesForEachWorker[i];
++		}
++		getLogger().debug("TOTAL_NETWORK_MESSAGE_SENDING_TIME: "
++			+ (totalNetworkSendingTimeInMillis - previousTotalSuperstepTotalNetworkSendingTimes));
++		getMachineStats().updateStatForSuperstep(StatName.TOTAL_NETWORK_MESSAGE_SENDING_TIME,
++			currentSuperstepNo,
++			(double) (totalNetworkSendingTimeInMillis - previousTotalSuperstepTotalNetworkSendingTimes));
++		previousTotalSuperstepTotalNetworkSendingTimes = totalNetworkSendingTimeInMillis;
++	}
++
++	private boolean waitForGOAndContinueComputationMessageFromMasterAndParseGOs() throws Throwable,
++		InterruptedException, CharacterCodingException, ClassNotFoundException,
++		InstantiationException, IllegalAccessException {
++		boolean continueComputation;
++		waitForAllControlMessagesToBeReceivedOrSent(currentSuperstepNo,
++			controlMessageStats,
++			ControlMessageType.RECEIVED_GLOBAL_OBJECTS_MESSAGES,
++			1 /* only from the master) */, machineStats);
++		globalObjectsMap = parseGlobalObjectsMessages(getCurrentSuperstepNo(),
++			null /* don't add anything to machine config file */);
++		dumpGlobalObjects(globalObjectsMap, currentSuperstepNo);
++		continueComputation = waitForContinueOrTerminationMessageFromMaster(
++			currentSuperstepNo);
++		return continueComputation;
++	}
++
++	private void parseInputSplits() throws Throwable {
++		// The first message to ever be sent must be the InputSplit message.
++		getLogger().info("Waiting for input split message...");
++		IncomingBufferedMessage inputSplitMessage = gpsWorkerMessages.take();
++		if (MessageTypes.INPUT_SPLIT != inputSplitMessage.getType()) {
++			getLogger().error("First Messsage to gpsWorkerMessages is not input split!!!");
++			System.exit(-1);
++		}
++		IoBuffer ioBuffer = inputSplitMessage.getIoBuffer();
++		getLogger().info("Input splits...");
++		List<InputSplit> inputSplits = new ArrayList<InputSplit>();
++		while (ioBuffer.hasRemaining()) {
++			String fileName = ioBuffer.getString(Utils.ISO_8859_1_DECODER);
++			ioBuffer.position(ioBuffer.position() + 1);
++			long startOffset = ioBuffer.getLong();
++			long endOffset = ioBuffer.getLong();
++			inputSplits.add(new InputSplit(fileName, startOffset, endOffset));
++		}
++		getLogger().info("End of reading input splits...");
++
++		boolean isFirstSplit = true;
++		for (InputSplit inputSplit : inputSplits) {
++			if (isFirstSplit) {
++				parseInputSplit(inputSplit, true);
++				isFirstSplit = false;
++			} else {
++				parseInputSplit(inputSplit, false);
++			}
++		}
++		getLogger().info("sending remaining initial vertex partitionings");
++		if (directed)
++			getMessageSender().sendRemainingInitialDirectedVertexPartitionings();
++		else
++			getMessageSender().sendRemainingInitialVertexPartitionings();
++		getLogger().info("sending sent final initial vertex partitionings messages to all workers");
++		messageSenderAndReceiver.sendFinalInitialVertexPartitioningControlMessagesToAllWorkers();
++		getLogger().info("waiting for final initial vertex partitioning messages to be received");
++		waitForAllControlMessagesToBeReceivedOrSent(-1, controlMessageStats,
++			ControlMessageType.RECEIVED_FINAL_INITIAL_VERTEX_PARTITIONING_MESSAGES,
++			getNumWorkers(), machineStats);
++		getLogger().info("calling graphPartition.finishedParsingGraph()");
++		graphPartition.finishedParsingGraph();
++		getLogger().info("setting a new incomingMessageStorage");
++		this.incomingMessageStorage = new ArrayBackedIncomingSubgraphMessageStorage<M, SM>(graphPartition,
++			messageRepresentativeInstance, subgraphMessageRepresentativeInstance, combine, getNumWorkers());
++		getLogger().info("calling finishedParsingInputSplits()");
++		finishedParsingInputSplits();
++	}
++	
++	protected abstract void finishedParsingInputSplits();
++
++	private void parseInputSplit(InputSplit inputSplit, boolean isFirstSplit) throws IOException,
++		InstantiationException, IllegalAccessException {
++		getLogger().info("Starting to parse input split: " + inputSplit.getFileName()
++			+ " startOffset: " + inputSplit.getStartOffset() + " endOffset: " + inputSplit.getEndOffset());
++		long startOffset = inputSplit.getStartOffset();
++		long endOffset = inputSplit.getEndOffset();
++		InputStreamReader inputStreamReader = new InputStreamReader(fileSystem.open(
++			new Path(inputSplit.getFileName())));
++		int bufferLength = 50000000;
++		char[] tmpCharArray = new char[bufferLength];
++		if (isFirstSplit && startOffset > 0) {
++			inputStreamReader.skip(startOffset-1);
++		}
++		if (startOffset > 0) {
++			startOffset += findIndexOfFirstNewLineChar(inputStreamReader) + 1;
++			if (startOffset > endOffset) {
++				return;
++			}
++		}
++		long currentOffset = startOffset;
++		String[] split = null;
++		int tmpCharArrayOffset = 0;
++		String newLineRegex = "\n";
++		StringBuilder tmpStr = new StringBuilder();
++		String dummyString;
++		int lengthOfActualRead = 0;
++		int numSkippedBecauseReadLittle = 0;
++		while (true) {
++			getLogger().debug("Starting a new iteration...");
++			getLogger().debug("tmpCharArrayOffset: " + tmpCharArrayOffset
++				+ " tmpCharArrayLength: " + tmpCharArray.length);
++			getLogger().info("currentOffset: " + currentOffset + " startOffset: " + startOffset
++				+ " endOffset: " + endOffset);
++			int restOfTheFileIntegerLength = (int) (endOffset - currentOffset + 1);
++			int maxReadableLength = Math.min((restOfTheFileIntegerLength) < 0 ? Integer.MAX_VALUE : restOfTheFileIntegerLength,
++				tmpCharArray.length - tmpCharArrayOffset);
++			getLogger().debug("maxReadableLength: " + maxReadableLength);
++			getLogger().debug("tmpCharArray.length - tmpCharArrayOffset: "
++				+ (tmpCharArray.length - tmpCharArrayOffset));
++			lengthOfActualRead = inputStreamReader.read(tmpCharArray, tmpCharArrayOffset,
++				maxReadableLength);
++			getLogger().debug("lengthOfActualRead: " + lengthOfActualRead);
++			if (lengthOfActualRead == -1) {
++				getLogger().debug("breaking because lengthOfActualRead is -1");
++				break;
++			}
++			currentOffset += lengthOfActualRead;
++			tmpCharArrayOffset += lengthOfActualRead;
++			if (currentOffset > endOffset) {
++				getLogger().info("breaking because currentOffset: " + currentOffset
++					+ " is larger than endOffset: " + endOffset);
++				break;
++			}
++			if (tmpCharArrayOffset < tmpCharArray.length) {
++				continue;
++			} else {
++				tmpCharArrayOffset = 0;
++			}
++			dummyString = new String(tmpCharArray, 0, tmpCharArray.length);
++			tmpStr.append(dummyString);
++			getLogger().info("tmpString.length: " + tmpStr.length());
++			getLogger().debug("tmpStr: " + tmpStr);
++			if (!dummyString.contains(newLineRegex)) {
++				continue;
++			}
++			split = tmpStr.toString().split(newLineRegex);
++			boolean lastCharIsNewLine = tmpStr.charAt(tmpStr.length() - 1) == '\n';
++			int lastSplitIndex = lastCharIsNewLine ? split.length
++				: split.length - 1;
++			getLogger().debug("Start of outputting lines...");
++			for (int i = 0; i < lastSplitIndex; ++i) {
++				if (directed)
++					sendVertexToMachineDirected(split[i]);
++				else
++					sendVertexToMachine(split[i]);
++				getLogger().debug(split[i]);
++			}
++			getLogger().info("End of outputting lines...");
++			tmpStr = lastCharIsNewLine ? new StringBuilder() : new StringBuilder(split[split.length - 1]);
++			getLogger().debug("lastLine: " + tmpStr.toString());
++		}
++		// Parse leftover string.
++		getLogger().info("Parsing leftover string. lengthOfActualRead: " + lengthOfActualRead +
++			" currentOffset: ");
++		tmpStr.append(new String(tmpCharArray, 0, tmpCharArrayOffset));
++		getLogger().debug("tmpStr: " + tmpStr.toString());
++		tmpStr.append(findLastLine(inputStreamReader));
++		getLogger().debug("Left over string: " + tmpStr);
++		split = tmpStr.toString().split(newLineRegex);
++		getLogger().debug("Start of outputting lines...");
++		for (int i = 0; i < split.length; ++i) {
++			if (directed)
++				sendVertexToMachineDirected(split[i]);
++			else
++				sendVertexToMachine(split[i]);
++			getLogger().debug(split[i]);
++		}
++		inputStreamReader.close();
++	}
++
++	private void sendVertexToMachineDirected(String line) throws InstantiationException,
++		IllegalAccessException {
++		String[] split = line.split("\\s+");
++		try {
++			int source = -1;
++			source = Integer.parseInt(split[0]);
++			int edgeIndex = 1;
++			MinaWritable tmpVertexValue = null;
++			if (jobConfiguration.hasVertexValuesInInput()) {
++				tmpVertexValue =
++					(MinaWritable) jobConfiguration.getVertexValueClass().newInstance();
++				tmpVertexValue.readVertexValue(split[1], source);
++				edgeIndex++;
++			}
++			List<Integer> outNeighbors = new ArrayList<Integer>();
++			List<Integer> inNeighbors = new ArrayList<Integer>();
++			E tmpEdge = representativeEdgeClassForParsingInput.newInstance();
++			List<MinaWritable> outEdgeValues = (tmpEdge instanceof NullWritable) ? null : new ArrayList<MinaWritable>();
++			List<MinaWritable> inEdgeValues = (tmpEdge instanceof NullWritable) ? null : new ArrayList<MinaWritable>();
++
++			int neighborId;
++			int numOutNeighborLength = Integer.parseInt(split[edgeIndex++]);
++			if (!(tmpEdge instanceof NullWritable)) {
++				numOutNeighborLength *= 2;
++			}
++			for (int i = 0; i < numOutNeighborLength; ++i) {
++				try {
++					neighborId = Integer.parseInt(split[i + edgeIndex]);
++				} catch (NumberFormatException e) {
++					getLogger().error("Number Format Exception in reading neighbor value: " + split[i]);
++					StringBuilder stringBuilder = new StringBuilder();
++					for (int j = 0; j < split.length; ++j) {
++						stringBuilder.append(" " + split[j]);
++					}
++					getLogger().error("whole line: ");
++					getLogger().error(stringBuilder);
++					getLogger().error("Continuing...");
++					continue;
++				}
++				outNeighbors.add(neighborId);
++				if (!(tmpEdge instanceof NullWritable)) {
++					++i;
++					tmpEdge = representativeEdgeClassForParsingInput.newInstance();
++					tmpEdge.readEdgeValue(split[i + edgeIndex], source, neighborId);
++					outEdgeValues.add(tmpEdge);
++				}
++			}
++			
++			edgeIndex += numOutNeighborLength;
++			int numInNeighborLength = Integer.parseInt(split[edgeIndex++]);
++			if (!(tmpEdge instanceof NullWritable)) {
++				numInNeighborLength *= 2;
++			}
++			for (int i = 0; i < numInNeighborLength; ++i) {
++				try {
++					neighborId = Integer.parseInt(split[i + edgeIndex]);
++				} catch (NumberFormatException e) {
++					getLogger().error("Number Format Exception in reading neighbor value: " + split[i]);
++					StringBuilder stringBuilder = new StringBuilder();
++					for (int j = 0; j < split.length; ++j) {
++						stringBuilder.append(" " + split[j]);
++					}
++					getLogger().error("whole line: ");
++					getLogger().error(stringBuilder);
++					getLogger().error("Continuing...");
++					continue;
++				}
++				inNeighbors.add(neighborId);
++				if (!(tmpEdge instanceof NullWritable)) {
++					++i;
++					tmpEdge = representativeEdgeClassForParsingInput.newInstance();
++					tmpEdge.readEdgeValue(split[i + edgeIndex], source, neighborId);
++					inEdgeValues.add(tmpEdge);
++				}
++			}
++			
++			getMessageSender().sendDirectedVertex(source, tmpVertexValue, outNeighbors, outEdgeValues, inNeighbors, inEdgeValues);
++		} catch (NumberFormatException e) { /* do nothing */}
++	}
++
++	private void sendVertexToMachine(String line) throws InstantiationException,
++		IllegalAccessException {
++		String[] split = line.split("\\s+");
++		try {
++			int source = -1;
++			source = Integer.parseInt(split[0]);
++			int edgesStartIndex = 1;
++			MinaWritable tmpVertexValue = null;
++			if (jobConfiguration.hasVertexValuesInInput()) {
++				tmpVertexValue =
++					(MinaWritable) jobConfiguration.getVertexValueClass().newInstance();
++				tmpVertexValue.readVertexValue(split[1], source);
++				edgesStartIndex++;
++			}
++			List<Integer> neighbors = new ArrayList<Integer>();
++			E tmpEdge = representativeEdgeClassForParsingInput.newInstance();
++			List<MinaWritable> edgeValues = (tmpEdge instanceof NullWritable) ? null : new ArrayList<MinaWritable>();
++			int neighborId;
++			for (int i = edgesStartIndex; i < split.length; ++i) {
++				try {
++					neighborId = Integer.parseInt(split[i]);
++				} catch (NumberFormatException e) {
++					getLogger().error("Number Format Exception in reading neighbor value: " + split[i]);
++					StringBuilder stringBuilder = new StringBuilder();
++					for (int j = 0; j < split.length; ++j) {
++						stringBuilder.append(" " + split[j]);
++					}
++					getLogger().error("whole line: ");
++					getLogger().error(stringBuilder);
++					getLogger().error("Continuing...");
++					continue;
++				}
++				neighbors.add(neighborId);
++				if (!(tmpEdge instanceof NullWritable)) {
++					tmpEdge = representativeEdgeClassForParsingInput.newInstance();
++					tmpEdge.readEdgeValue(split[++i], source, neighborId);
++					edgeValues.add(tmpEdge);
++				}
++			}
++			getMessageSender().sendVertex(source, tmpVertexValue, neighbors, edgeValues);
++		} catch (NumberFormatException e) { /* do nothing */}
++	}
++
++	private String findLastLine(InputStreamReader inputStreamReader) throws IOException {
++		StringBuilder retVal = new StringBuilder();
++		int nextCharInt = inputStreamReader.read();
++		while ((nextCharInt != -1) && !('\n' == (char) nextCharInt)) {
++			retVal.append(((char) nextCharInt));
++			nextCharInt = inputStreamReader.read();
++		}
++		getLogger().info("found last line: " + retVal);
++		return retVal.toString();
++	}
++
++	private long findIndexOfFirstNewLineChar(InputStreamReader inputStreamReader)
++		throws IOException {
++		int indexOfNewLine = 0;
++		while (!('\n' == inputStreamReader.read())) {
++			indexOfNewLine++;
++		}
++		getLogger().info("Index of first line: " + indexOfNewLine);
++		return indexOfNewLine;
++	}
++
++	private boolean waitForContinueOrTerminationMessageFromMaster(int superstepNo) throws Throwable {
++		boolean continueComputation;
++		waitForAllControlMessagesToBeReceivedOrSent(superstepNo,
++			controlMessageStats,
++			ControlMessageType.RECEIVED_BEGIN_NEXT_SUPERSTEP_OR_TERMINATE_MESSAGE, 1,
++			machineStats);
++		continueComputation =
++			controlMessageStats.getControlMessageBooleanValue(superstepNo,
++				ControlMessageType.RECEIVED_BEGIN_NEXT_SUPERSTEP_OR_TERMINATE_MESSAGE);
++		return continueComputation;
++	}
++
++	private void removeTotalGlobalObjects() {
++		globalObjectsMap.removeGlobalObject(GlobalObjectsMap.NUM_TOTAL_VERTICES);
++		globalObjectsMap.removeGlobalObject(GlobalObjectsMap.NUM_TOTAL_EDGES);
++	}
++
++	private void putDefaultGlobalObjects(int numActiveVertices) {
++		getLogger().info("putting NUM_VERTICES into GlobalObjects: " + graphPartition.size()
++			+ " numActiveVertices: " + numActiveVertices);;
++		globalObjectsMap.putGlobalObject(GlobalObjectsMap.NUM_VERTICES,
++			new IntSumGlobalObject(graphPartition.size()));
++		globalObjectsMap.putGlobalObject(GlobalObjectsMap.NUM_EDGES,
++			new IntSumGlobalObject(graphPartition.getNumEdges()));
++		globalObjectsMap.putGlobalObject(GlobalObjectsMap.NUM_ACTIVE_VERTICES,
++			new IntSumGlobalObject(numActiveVertices));
++	}
++
++	private void doLargeVertexPartitioning() throws Throwable {
++		messageSenderAndReceiver.sendStatusUpdateToMaster(1,
++			StatusType.DOING_LARGE_VERTEX_PARTITIONING);
++		getLogger().info("largeVertexPartitioningOutdegreeThreshold: " +
++			largeVertexPartitioningOutdegreeThreshold);
++		List<List<Pair<Integer, ArrayList<Integer>>>> partitionedNeighborIds =
++			new ArrayList<List<Pair<Integer, ArrayList<Integer>>>>();
++		int numWorkers = getNumWorkers();
++		for (int i = 0; i < numWorkers; ++i) {
++			partitionedNeighborIds.add(new ArrayList<Pair<Integer, ArrayList<Integer>>>());
++		}
++		Map<Integer, Integer> exceptionNeighborIdSizes = new HashMap<Integer, Integer>();
++		for (int localId = 0; localId < graphPartition.size(); ++localId) {
++			int[] neighborIdsOfLocalId = graphPartition.getNeighborIdsOfLocalId(localId);
++			int originalNeighborIdsSize = neighborIdsOfLocalId.length;
++			if (originalNeighborIdsSize > largeVertexPartitioningOutdegreeThreshold) {
++				int globalId = graphPartition.getGlobalId(localId);
++				addNewPairToEachWorker(partitionedNeighborIds, globalId);
++				for (int neighborId : neighborIdsOfLocalId) {
++					int machineId = neighborId % numWorkers;
++					partitionedNeighborIds.get(machineId).get(
++						partitionedNeighborIds.get(machineId).size() - 1).snd.add(neighborId);
++				}
++				graphPartition.removeEdgesOfLocalId(localId);
++				localLargeVertices.add(localId);
++				exceptionNeighborIdSizes.put(localId, originalNeighborIdsSize);
++			}
++		}
++		graphPartition.setExeptionNeighborSizes(exceptionNeighborIdSizes);
++		for (int i = 0; i < numWorkers; ++i) {
++			messageSenderAndReceiver.sendBufferedMessage(
++				constructLargeVertexPartitionsMessage(partitionedNeighborIds.get(i)), i);
++		}
++		waitForAllControlMessagesToBeReceivedOrSent(-1, controlMessageStats,
++			ControlMessageType.RECEIVED_LARGE_VERTEX_PARTITIONING_MESSAGES,
++			getNumWorkers(), machineStats);
++		getLogger().info("End of dumping outsidePartitionedVertices...");
++	}
++
++	private OutgoingBufferedMessage constructLargeVertexPartitionsMessage(
++		List<Pair<Integer, ArrayList<Integer>>> partitionedNeighborIds) {
++		IoBuffer ioBuffer = IoBuffer.allocate(100).setAutoExpand(true);
++		for (Pair<Integer, ArrayList<Integer>> partitionedVertex : partitionedNeighborIds) {
++			ioBuffer.putInt(partitionedVertex.fst);
++			ArrayList<Integer> neighborIds = partitionedVertex.snd;
++			ioBuffer.putInt(neighborIds.size());
++			for (int neighborId : neighborIds) {
++				ioBuffer.putInt(neighborId);
++			}
++		}
++		return new OutgoingBufferedMessage(MessageTypes.LARGE_VERTEX_PARTITIONS,
++			1 /* superstep No */, ioBuffer);
++	}
++
++	private void addNewPairToEachWorker(
++		List<List<Pair<Integer, ArrayList<Integer>>>> partitionedNeighborIds, int globalId) {
++		for (int i = 0; i < getNumWorkers(); ++i) {
++			partitionedNeighborIds.get(i).add(Pair.of(globalId, new ArrayList<Integer>()));
++		}
++	}
++
++	protected void doExtraWorkBeforeStartingSuperstep() throws InterruptedException {
++		// Nothing to do
++	}
++
++    private static void dowork(String message) {
++        buffer.add(message);
++    }
++
++	protected void doSuperstepComputation() throws InterruptedException, IOException {
++		ComputationTypes computationStage = ComputationTypes.getTypeFromId(
++            	((IntWritable) globalObjectsMap.getGlobalObject(
++            	"computation-stage").getValue()).getValue());
++
++		if (computationStage == ComputationTypes.WAITING) {
++			long nowTime = System.currentTimeMillis() / 1000;
++
++			if (!tookSnapshot) {
++                String snapshotFileName = outputFileName + "_" + Long.toString(nowTime);
++                Utils.writeChangeVertexValues(fileSystem, graphPartition, snapshotFileName);
++            }
++            tookSnapshot = true;
++
++			while (nowTime < baseline + windowSize)
++				nowTime = System.currentTimeMillis() / 1000;
++			baseline = baseline + windowSize;
++
++			int numOfUpdate = 0;
++			numOfVoteToHalt = 0;
++            ArrayList<String> topoUpdate = new ArrayList<String>();
++			while (buffer.isEmpty() == false) {
++				String[] msgStrs = buffer.peek().split(":");
++				long timestamp = Long.parseLong(msgStrs[0]);
++				if (timestamp < 0) {
++                    numOfVoteToHalt++;
++                    break;
++                }
++
++				if (timestamp > nowTime)
++					break;
++				
++				getLogger().info(buffer.poll());
++				boolean add = Boolean.parseBoolean(msgStrs[1]);
++				int srcVId = Integer.parseInt(msgStrs[2]);
++				int dstVId = Integer.parseInt(msgStrs[3]);
++				if (graphPartition.contains(srcVId)) {
++					if (add) {
++						graphPartition.addOutEdge(srcVId, dstVId);
++					} else {
++						graphPartition.removeOutEdge(srcVId, dstVId);
++					}
++					vertex.setLocalId(graphPartition.getLocalId(srcVId));
++					vertex.doWorkAfterUpdateTopology(add, dstVId);
++					vertex.sendBufferedData();
++					numOfUpdateEvent++;
++				} 
++				if (graphPartition.contains(dstVId)) {
++					if (add) {
++						if (graphPartition.contains(srcVId) == false)
++                            topoUpdate.add("add " + srcVId + " -> " + dstVId);
++						graphPartition.addInEdge(dstVId, srcVId);
++					} else {
++						if (graphPartition.contains(srcVId) == false)
++                            topoUpdate.add("del " + srcVId + " -> " + dstVId);
++						graphPartition.removeInEdge(dstVId, srcVId);
++					}
++				}
++			}
++			if (topoUpdate.size() > 0) {
++                String topoFile = outputFileName + "_" + nowTime;
++                Utils.writeChangeTopology(fileSystem, topoUpdate, topoFile);
++            }
++            globalObjectsMap.putGlobalObject("num-Of-Stop-Signals", new IntSumGlobalObject(numOfVoteToHalt));
++			globalObjectsMap.putGlobalObject("num-Of-Update-Event", new IntSumGlobalObject(numOfUpdateEvent));
++		} else if (computationStage == ComputationTypes.RECOMPUTE_SETUP) { 
++			if (batchMode)
++				for (int localId = 0; localId < graphPartition.size(); ++localId)
++					graphPartition.setIsStableOfLocalId(localId, false);
++			tookSnapshot = false;
++		}
++
++		Subgraph.globalObjectsMap = globalObjectsMap;
++		NullEdgeSubgraphVertex.globalObjectsMap = globalObjectsMap;
++
++		vertex.doWorkBeforeSuperstepComputation();
++		long timeBefore = System.currentTimeMillis();
++		getMachineStats().updateStatForSuperstep(StatName.TOTAL_TIME_SPENT_ON_LARGE_VERTEX_COMPUTATION,
++			currentSuperstepNo, (double) (System.currentTimeMillis() - timeBefore));
++		numIncomingMessages = 0;
++
++		Iterable<SM> incomingMessages =
++            incomingMessageStorage.getSubgraphMessageValuesForCurrentSuperstep();
++        numIncomingMessages +=
++            ArrayBackedIncomingSubgraphMessageStorage.incomingSubgraphMessageValues.messagesIterator.numWritableBytes;
++         boolean status = graphPartition.isActiveOfSubgraph();
++        if (Subgraph.INACTIVE == status && (!incomingMessages.iterator().hasNext())) {
++            ;
++        }
++        if (Subgraph.INACTIVE == status && incomingMessages.iterator().hasNext()) {
++            graphPartition.setIsActiveOfSubgraph(true);
++        }
++        if (Subgraph.ACTIVE == graphPartition.isActiveOfSubgraph())
++        	subgraph.compute_before_vertex(incomingMessages, currentSuperstepNo);
++
++		for (int localId = 0; localId < graphPartition.size(); ++localId) {
++			if (shouldSkipVertex(localId)) {
++				continue;
++			}
++			if ((localId % 100000) == 0) {
++				getLogger().info("processing " + localId + "th vertex...");
++			}
++			doVertexComputation(localId);
++		}
++
++		 subgraph.resetMessagesToBeginning(incomingMessages);
++
++        if (Subgraph.INACTIVE == status && (!incomingMessages.iterator().hasNext())) {
++            ;
++        }
++        if (Subgraph.INACTIVE == status && incomingMessages.iterator().hasNext()) {
++            graphPartition.setIsActiveOfSubgraph(true);
++        }
++        if (Subgraph.ACTIVE == graphPartition.isActiveOfSubgraph())
++        	subgraph.compute_after_vertex(incomingMessages, currentSuperstepNo);
++		
++		globalObjectsMap.putGlobalObject("num-Of-Stable-Vertices", new IntSumGlobalObject(numStableNodesForNextSuperstep));
++	
++		getMachineStats().updateStatForSuperstep(
++			StatName.TOTAL_MESSAGES_RECEIVED, getCurrentSuperstepNo(),
++			(double) numIncomingMessages);
++		getMachineStats().updateStatForSuperstep(
++			StatName.TOTAL_SLEEP_TIME_FOR_OUTGOING_BUFFERS, getCurrentSuperstepNo(),
++			(double) totalSleepTimeForNetworkToSendMessages);
++		getMachineStats().updateStatForSuperstep(
++			StatName.NUM_NODES_MADE_ACTIVE_BY_INCOMING_MESSAGES, getCurrentSuperstepNo(),
++			(double) numNodesMadeActiveByIncomingMessages);
++	}
++
++	private void doVertexComputation(int localId) throws InterruptedException {
++		if ((localId % numVerticesFrequencyToCheckOutgoingBuffers) == 0) {
++			waitTillOutgoingBuffersDecreaseBelowMaxMessagesToTransmitConcurrently();
++		}
++		vertex.setLocalId(localId);
++		int nodeId = graphPartition.getGlobalId(localId);
++		boolean status = graphPartition.isActiveOfLocalId(localId);
++		boolean statusOfStable = graphPartition.isStableOfLocalId(localId);
++		doExtraWorkBeforeVertexComputation();
++		Iterable<M> incomingMessages =
++			incomingMessageStorage.getMessageValuesForCurrentSuperstep(localId);
++		// TODO should record?
++		numIncomingMessages +=
++			ArrayBackedIncomingSubgraphMessageStorage.incomingMessageValues.messagesIterator.numWritableBytes;
++		if ((NullEdgeSubgraphVertex.INACTIVE == status) && (!incomingMessages.iterator().hasNext())) {
++			return;
++		}
++		if (NullEdgeSubgraphVertex.ACTIVE == status) {
++			numPreviouslyActiveNodes++;
++		}
++		if (NullEdgeSubgraphVertex.INACTIVE == status && incomingMessages.iterator().hasNext()) {
++			graphPartition.setIsActiveOfLocalId(localId, true);
++			numNodesMadeActiveByIncomingMessages++;
++		}
++		
++		boolean stableInPreviousSuperstep = false;
++		if (statusOfStable == true && incomingMessages.iterator().hasNext()) {
++			graphPartition.setIsStableOfLocalId(localId, false);
++			stableInPreviousSuperstep = true; 
++			statusOfStable = false;
++		}
++		ComputationTypes computationStage = ComputationTypes.getTypeFromId(
++            	((IntWritable) globalObjectsMap.getGlobalObject(
++            	"computation-stage").getValue()).getValue());
++		if (statusOfStable == false) {
++			switch (computationStage) {
++        	case COMPUTE:
++        		vertex.compute(incomingMessages, currentSuperstepNo);
++        		break;
++        	case INCREMENTAL_COMPUTE: 
++        		vertex.incremental_compute(incomingMessages, currentSuperstepNo, stableInPreviousSuperstep); 
++        		break;
++        	case CONVERGE_CHECKING:
++        		vertex.converge_checking(incomingMessages, currentSuperstepNo);
++        		break;
++        	case WAITING:
++        		break;
++        	default:
++        		break;
++        	}
++			
++		}
++
++		if (graphPartition.isActiveOfLocalId(localId) == NullEdgeSubgraphVertex.ACTIVE) {
++			numActiveNodesForNextSuperstep++;
++		}
++
++		vertex.sendBufferedData();
++		doExtraWorkAfterVertexComputation(nodeId, localId);
++		
++		if (stableInPreviousSuperstep && vertex.checkUnstableInPreviousSuperstep())
++            graphPartition.setIsStableOfLocalId(localId, true);
++		
++		if (graphPartition.isStableOfLocalId(localId) == true && (vertex.hadSentMsg() == false || 
++				computationStage == ComputationTypes.CONVERGE_CHECKING)) {
++			numStableNodesForNextSuperstep++;
++		}
++	}
++
++	protected void waitTillOutgoingBuffersDecreaseBelowMaxMessagesToTransmitConcurrently()
++		throws InterruptedException {
++		int numOutgoingBuffers = messageSenderAndReceiver.getNumOutgoingBuffersInQueue();
++		while (numOutgoingBuffers > (maxMessagesToTransmitConcurrently)) {
++			getLogger().info("Sleeping for "  + sleepTimeWhenOutgoingBuffersExceedThreshold + " millis. numOutgoingBuffers: "
++				+ numOutgoingBuffers);
++			Thread.sleep(sleepTimeWhenOutgoingBuffersExceedThreshold);
++			totalSleepTimeForNetworkToSendMessages += sleepTimeWhenOutgoingBuffersExceedThreshold;
++			numOutgoingBuffers = messageSenderAndReceiver.getNumOutgoingBuffersInQueue();
++		}
++	}
++
++	protected boolean shouldSkipVertex(int localId) {
++		return false;
++	}
++
++	public AbstractSubgraphWorker setNumEdgesInPartition(int numEdgesInPartition) {
++		this.numEdgesInPartition = numEdgesInPartition;
++		return this;
++	}
++
++	protected void doExtraWorkBeforeVertexComputation() {
++		// Nothing to do
++	}
++
++	protected void doExtraWorkAfterVertexComputation(int vertexId, int localId) {
++		// Nothing to do
++	}
++
++	protected void doExtraWorkAfterFinishingSuperstepComputation() {
++		// Nothing to do
++	}
++
++	protected void doExtraWorkAfterReceivingAllFinalDataSentMessages() throws InterruptedException,
++		IOException {
++		// Nothing to do
++	}
++
++	protected abstract void startMessageParserThreads();
++
++	protected abstract StaticSubgraphMessageSender getMessageSender();
++
++	protected abstract Logger getLogger();
++
++	private OutgoingBufferedMessage getStatusUpdateMessage(StatusType statusType) {
++		IoBuffer ioBuffer = IoBuffer.allocate(4);
++		ioBuffer.putInt(statusType.getId());
++		return new OutgoingBufferedMessage(MessageTypes.STATUS_UPDATE, currentSuperstepNo,
++			ioBuffer);
++	}
++
++	private static OutgoingBufferedMessage constructEndOfSuperstepStatusUpdateMessage(
++		int superstepNo) {
++		Map<Integer, Double> statIdValueMap = new HashMap<Integer, Double>();
++		for (StatName statName : StatName.values()) {
++			if (statName.isPerSuperstep()
++				&& machineStats.getStatValue(statName, superstepNo) != null) {
++				statIdValueMap.put(statName.getId(),
++					machineStats.getStatValue(statName, superstepNo));
++			}
++		}
++
++		ArrayList<Integer> ids = new ArrayList<Integer>(statIdValueMap.keySet());
++		Collections.sort(ids);
++		IoBuffer ioBuffer = IoBuffer.allocate(4 + ids.size() * 12);
++		ioBuffer.putInt(StatusType.END_OF_SUPERSTEP.getId());
++		for (Integer id : ids) {
++			ioBuffer.putInt(id);
++			ioBuffer.putDouble(statIdValueMap.get(id));
++		}
++		return new OutgoingBufferedMessage(MessageTypes.STATUS_UPDATE, superstepNo,
++			ioBuffer);
++	}
++}
+diff --git a/java/gps/node/worker/subgraph/StaticSubgraphMessageSender.java b/java/gps/node/worker/subgraph/StaticSubgraphMessageSender.java
+new file mode 100644
+index 0000000..bf3164a
+--- /dev/null
++++ b/java/gps/node/worker/subgraph/StaticSubgraphMessageSender.java
+@@ -0,0 +1,124 @@
++package gps.node.worker.subgraph;
++
++import static gps.node.worker.GPSWorkerExposedGlobalVariables.getNumWorkers;
++import gps.communication.MessageSenderAndReceiverForWorker;
++import gps.node.worker.StaticGPSMessageSender;
++import gps.messages.MessageTypes;
++import gps.node.MachineConfig;
++import gps.writable.MinaWritable;
++
++import org.apache.mina.core.buffer.IoBuffer;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import org.apache.log4j.Logger;
++
++public class StaticSubgraphMessageSender extends StaticGPSMessageSender {
++
++	private static Logger logger = Logger.getLogger(StaticSubgraphMessageSender.class);
++
++	public StaticSubgraphMessageSender(MachineConfig machineConfig, int outgoingBufferSizes,
++		MessageSenderAndReceiverForWorker messageSenderAndReceiverForWorker) {
++		super(machineConfig, outgoingBufferSizes, messageSenderAndReceiverForWorker);
++	}
++
++	public void sendRemainingInitialDirectedVertexPartitionings() {
++		sendRemainingIoBuffers(outgoingDataBuffersMap, MessageTypes.INITIAL_DIRECTED_VERTEX_PARTITIONING,
++			false /* don't skip local machine id */);
++	}
++
++	public void sendDirectedVertex(int vertexId, MinaWritable vertexValue, List<Integer> outNeighbors,
++		List<MinaWritable> outEdgeValues, List<Integer> inNeighbors, List<MinaWritable> inEdgeValues) {
++		int machineIdOfVertex = vertexId % getNumWorkers();
++		IoBuffer ioBuffer = outgoingDataBuffersMap.get(machineIdOfVertex);
++		int messageSize = 4 + 4 + (4 * outNeighbors.size()) + 4 + (4 * inNeighbors.size());
++		if (vertexValue != null) {
++			messageSize += vertexValue.numBytes();
++		}
++		if (outEdgeValues != null && !outEdgeValues.isEmpty()) {
++			messageSize += outEdgeValues.get(0).numBytes() * outEdgeValues.size();
++		}
++		if (inEdgeValues != null && !inEdgeValues.isEmpty()) {
++			messageSize += inEdgeValues.get(0).numBytes() * inEdgeValues.size();
++		}
++
++		if (ioBuffer.remaining() < messageSize) {
++			ioBuffer = sendOutgoingBufferAndAllocateNewBuffer(outgoingDataBuffersMap,
++				machineIdOfVertex, MessageTypes.INITIAL_DIRECTED_VERTEX_PARTITIONING, messageSize);
++		}
++
++		ioBuffer.putInt(vertexId);
++		if (vertexValue != null) {
++			vertexValue.write(ioBuffer);
++		}
++		ioBuffer.putInt(outNeighbors.size());
++		for (int i = 0; i < outNeighbors.size(); ++i) {
++			ioBuffer.putInt(outNeighbors.get(i));
++			if (outEdgeValues != null) {
++				outEdgeValues.get(i).write(ioBuffer);
++			}
++		}
++		ioBuffer.putInt(inNeighbors.size());
++		for (int i = 0; i < inNeighbors.size(); ++i) {
++			ioBuffer.putInt(inNeighbors.get(i));
++			if (inEdgeValues != null) {
++				inEdgeValues.get(i).write(ioBuffer);
++			}
++		}
++	}
++
++	public void sendCompressDataMessage(MinaWritable messageValue, int[] toNodeIds) {
++		boolean[] sentVertex = new boolean[toNodeIds.length];
++		ArrayList<Integer> targetIds = new ArrayList<Integer>();
++		int machineIdOfNeighbor;
++		int toNodeId;
++		for (int i = 0; i < sentVertex.length; ++i) {
++			sentVertex[i] = false;
++		}		
++
++		for (int i = 0; i < sentVertex.length; ++i) {
++			if (sentVertex[i])
++				continue;
++			targetIds.clear();
++			toNodeId = toNodeIds[i];
++			machineIdOfNeighbor = toNodeId % getNumWorkers();
++			targetIds.add(toNodeId);
++			sentVertex[i] = true;
++			for (int j = i +1; j < sentVertex.length; ++j) {
++				if (toNodeIds[j] % getNumWorkers() != machineIdOfNeighbor)
++					continue;
++				targetIds.add(toNodeIds[j]);
++				sentVertex[j] = true;
++			}
++			
++			IoBuffer ioBuffer = outgoingDataBuffersMap.get(machineIdOfNeighbor);
++			int messageSize = messageValue.numBytes();
++			if(ioBuffer == null) {
++				logger.error("ioBuffer is null");
++			}
++			if (ioBuffer.remaining() < messageSize + 4 + 4*targetIds.size()) {
++				ioBuffer = sendOutgoingBufferAndAllocateNewBuffer(outgoingDataBuffersMap,
++				machineIdOfNeighbor, MessageTypes.COMPRESS_VERTEX_DATA, messageSize + 4 + 4*targetIds.size());
++			}
++
++			ioBuffer.putInt(targetIds.size());
++			for (int j = 0; j < targetIds.size(); ++j)
++				ioBuffer.putInt(targetIds.get(j));
++			messageValue.write(ioBuffer);
++		}
++	}
++
++	public void sendSubgraphDataMessage(MinaWritable messageValue, int toSubgraphId) {
++		IoBuffer ioBuffer = outgoingDataBuffersMap.get(toSubgraphId);
++		int messageSize = 4 + messageValue.numBytes();
++		if(ioBuffer == null) {
++			logger.error("ioBuffer is null");
++		}
++		if (ioBuffer.remaining() < messageSize) {
++			ioBuffer = sendOutgoingBufferAndAllocateNewBuffer(outgoingDataBuffersMap,
++				toSubgraphId, MessageTypes.SUBGRAPH_DATA, messageSize);
++		}
++		messageValue.write(ioBuffer);
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/node/worker/subgraph/StaticSubgraphWorkerImpl.java b/java/gps/node/worker/subgraph/StaticSubgraphWorkerImpl.java
+new file mode 100644
+index 0000000..c75e258
+--- /dev/null
++++ b/java/gps/node/worker/subgraph/StaticSubgraphWorkerImpl.java
+@@ -0,0 +1,81 @@
++package gps.node.worker.subgraph;
++
++import org.apache.commons.cli.CommandLine;
++import org.apache.hadoop.fs.FileSystem;
++import org.apache.log4j.Logger;
++
++import gps.communication.MessageSenderAndReceiverFactory;
++import gps.graph.ArrayBackedSubgraph;
++import gps.graph.InnerVertexFactory;
++import gps.graph.SubgraphFactory;
++import gps.messages.storage.ArrayBackedIncomingSubgraphMessageStorage;
++import gps.node.SubgraphJobConfiguration;
++import gps.node.MachineConfig;
++import gps.writable.MinaWritable;
++
++/**
++ * 
++ * Modify from StaticGPSWorkerImpl
++ *
++ */
++public class StaticSubgraphWorkerImpl<V extends MinaWritable, E extends MinaWritable,
++	M extends MinaWritable, SV extends MinaWritable, SM extends MinaWritable> 
++	extends AbstractSubgraphWorker<V, E, M, SV, SM> {
++
++	private static Logger logger = Logger.getLogger(StaticSubgraphWorkerImpl.class);
++
++	private StaticSubgraphMessageSender messageSender;
++
++	private SubgraphDataAndControlMessagesParserThread<V, E, M, SV, SM> dataAndControlMessagesParserThread;
++	
++	public StaticSubgraphWorkerImpl(int localMachineId, CommandLine commandLine, FileSystem fileSystem,
++		MachineConfig machineConfig, ArrayBackedSubgraph<V, E, SV> graphPartition,
++		InnerVertexFactory<V, E, M, SV> vertexFactory, SubgraphFactory<V, E, M, SV, SM> subgraphInstance, 
++		int graphSize, int outgoingDataBufferSizes, String outputFileName,
++		MessageSenderAndReceiverFactory messageSenderAndReceiverFactory,
++		ArrayBackedIncomingSubgraphMessageStorage<M, SM> incomingMessageStorage, long pollingTime,
++		int maxMessagesToTransmitConcurrently, int numVerticesFrequencyToCheckOutgoingBuffers,
++		int sleepTimeWhenOutgoingBuffersExceedThreshold, Class<M> representativeMessageClass,
++		int largeVertexPartitioningOutdegreeThreshold, boolean runPartitioningSuperstep,
++		boolean combine, Class<M> messageRepresentativeInstance, Class<SM> subgraphMessageRepresentativeInstance,
++		Class<E> representativeEdgeClass, SubgraphJobConfiguration jobConfiguration, int numProcessorsForHandlingIO,
++		boolean isNoDataParsing) throws InstantiationException, IllegalAccessException {
++		super(localMachineId, commandLine, fileSystem, machineConfig, graphPartition, vertexFactory, subgraphInstance, 
++			graphSize, outgoingDataBufferSizes, outputFileName, messageSenderAndReceiverFactory,
++			incomingMessageStorage, pollingTime, maxMessagesToTransmitConcurrently,
++			numVerticesFrequencyToCheckOutgoingBuffers,
++			sleepTimeWhenOutgoingBuffersExceedThreshold, largeVertexPartitioningOutdegreeThreshold,
++			runPartitioningSuperstep, combine, messageRepresentativeInstance, subgraphMessageRepresentativeInstance,
++			representativeEdgeClass, jobConfiguration, numProcessorsForHandlingIO);
++
++		System.out.println("Inside Static SubgraphWorkerImpl: " + runPartitioningSuperstep);
++
++		this.messageSender = new StaticSubgraphMessageSender(machineConfig, outgoingDataBufferSizes,
++			messageSenderAndReceiver);
++		
++		this.dataAndControlMessagesParserThread = new SubgraphDataAndControlMessagesParserThread<V, E, M, SV, SM>(incomingMessageStorage,
++			incomingBufferedDataAndControlMessages, controlMessageStats, representativeMessageClass,
++			graphPartition, vertex, representativeEdgeClass.newInstance(), jobConfiguration,
++			isNoDataParsing);
++	}
++
++	protected void startMessageParserThreads() {
++		this.dataAndControlMessagesParserThread.start();
++	}
++
++	@Override
++	protected StaticSubgraphMessageSender getMessageSender() {
++		return messageSender;
++	}
++
++	@Override
++	protected Logger getLogger() {
++		return logger;
++	}
++
++	@Override
++	protected void finishedParsingInputSplits() {
++		// TODO(semih): This is a bad hack to test initial vertex partitioning.
++		this.dataAndControlMessagesParserThread.setIncomingMessageStorage(this.incomingMessageStorage);
++	}
++}
+\ No newline at end of file
+diff --git a/java/gps/node/worker/subgraph/SubgraphDataAndControlMessagesParserThread.java b/java/gps/node/worker/subgraph/SubgraphDataAndControlMessagesParserThread.java
+new file mode 100644
+index 0000000..1c341f1
+--- /dev/null
++++ b/java/gps/node/worker/subgraph/SubgraphDataAndControlMessagesParserThread.java
+@@ -0,0 +1,285 @@
++package gps.node.worker.subgraph;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.BlockingQueue;
++
++import gps.globalobjects.GlobalObjectsMap;
++import gps.graph.ArrayBackedSubgraph;
++import gps.graph.InnerVertex;
++import gps.messages.IncomingBufferedMessage;
++import gps.messages.MessageTypes;
++import gps.messages.storage.ArrayBackedIncomingSubgraphMessageStorage;
++import gps.node.ControlMessagesStats;
++import gps.node.SubgraphJobConfiguration;
++import gps.node.ControlMessagesStats.ControlMessageType;
++import gps.node.MachineStats.StatName;
++import gps.writable.MinaWritable;
++import gps.writable.NullWritable;
++
++import org.apache.log4j.Logger;
++import org.apache.mina.core.buffer.IoBuffer;
++
++import static gps.node.worker.GPSWorkerExposedGlobalVariables.*;
++
++/**
++ * 
++ * Modify from DataAndControlMessagesParserThread 
++ *
++ */
++public class  SubgraphDataAndControlMessagesParserThread<V extends MinaWritable, E extends MinaWritable,
++	MW extends MinaWritable, SV extends MinaWritable, SMW extends MinaWritable>
++	extends Thread {
++
++	private static Logger logger = Logger.getLogger(SubgraphDataAndControlMessagesParserThread.class);
++
++	private int latestSuperstepNo = -1;
++	private ArrayBackedIncomingSubgraphMessageStorage<MW, SMW> incomingMessageStorage;
++	private final BlockingQueue<IncomingBufferedMessage> incomingBufferedMessages;
++	private final ControlMessagesStats controlMessagesStats;
++	private final ArrayBackedSubgraph graphPartition;
++	private final InnerVertex representativeVertex;
++	// TODO(semih): Make this private
++	public static Map<Integer, List<Integer>> outsidePartitionedVertices =
++		new HashMap<Integer, List<Integer>>();
++	protected Class<MW> messageRepresentativeClass;
++	protected static long[] dataParserTimeSpentOnAddMessages;
++	protected static long[] dataParserTimeSpentWaitingForBuffersToArrive;
++
++	private final boolean isNoParsing;
++
++	private final MinaWritable representativeEdgeValue;
++	private final Class<? extends MinaWritable> representativeVertexValueClassForInputParsing;
++
++	public SubgraphDataAndControlMessagesParserThread(ArrayBackedIncomingSubgraphMessageStorage<MW, SMW> incomingMessageStorage,
++		BlockingQueue<IncomingBufferedMessage> incomingBufferedMessages,
++		ControlMessagesStats controlMessagesStats, Class<MW> messageRepresentativeClass,
++		ArrayBackedSubgraph<V,E,SV> graphPartition, InnerVertex<V,E,MW,SV> representativeVertex, MinaWritable representativeEdgeValue,
++		SubgraphJobConfiguration jobConfiguration, boolean isNoParsing) throws InstantiationException, IllegalAccessException {
++		super("SubgraphDataAndControlMessagesParserThread");
++		this.incomingMessageStorage = incomingMessageStorage;
++		this.incomingBufferedMessages = incomingBufferedMessages;
++		this.controlMessagesStats = controlMessagesStats;
++		this.messageRepresentativeClass = messageRepresentativeClass;
++		this.graphPartition = graphPartition;
++		this.representativeVertex = representativeVertex;
++		this.representativeEdgeValue = representativeEdgeValue;
++		if (jobConfiguration.hasVertexValuesInInput()) {
++			this.representativeVertexValueClassForInputParsing =
++				(Class<? extends MinaWritable>) jobConfiguration.getVertexValueClass();
++		} else {
++			this.representativeVertexValueClassForInputParsing = null;
++		}
++		this.isNoParsing = isNoParsing;
++		dataParserTimeSpentOnAddMessages = new long[100000];
++		dataParserTimeSpentWaitingForBuffersToArrive = new long[100000];
++	}
++
++	@Override
++	public void run() {
++		while (true) {
++			try {
++				long timeBefore;
++				int fromMachineId;
++				long timeBeforeTakingMessage = System.currentTimeMillis();
++				IncomingBufferedMessage incomingBufferedDataMessage =
++					incomingBufferedMessages.take();
++				long timeAfterTakingMessage = System.currentTimeMillis();
++				MessageTypes type = incomingBufferedDataMessage.getType();
++				int superstepNo = incomingBufferedDataMessage.getSuperstepNo();
++				if ((superstepNo > 0) && (type == MessageTypes.DATA || type == MessageTypes.COMPRESS_VERTEX_DATA)) {
++					if (dataParserTimeSpentWaitingForBuffersToArrive[superstepNo] == 0) {
++						dataParserTimeSpentWaitingForBuffersToArrive[superstepNo] = 1;
++					} else {
++						dataParserTimeSpentWaitingForBuffersToArrive[superstepNo] +=
++						(timeAfterTakingMessage - timeBeforeTakingMessage);
++					}
++				}
++				if (superstepNo > latestSuperstepNo) {
++					latestSuperstepNo = superstepNo;
++					getMachineStats().updateStatForSuperstep(
++						StatName.DATA_PARSER_FIRST_MESSAGE_PARSING_TIME, superstepNo,
++						(double) System.currentTimeMillis());
++				}
++				IoBuffer ioBuffer = null;
++				switch (type) {
++				case COMPRESS_VERTEX_DATA:
++					ioBuffer = incomingBufferedDataMessage.getIoBuffer();
++					while (ioBuffer.hasRemaining()) {
++						int numToNodeVIds = ioBuffer.getInt();
++						List<Integer> toNodeIds = new ArrayList<Integer>();
++						for (int index = 0; index < numToNodeVIds; ++index)
++							toNodeIds.add(ioBuffer.getInt());
++						incomingMessageStorage.addMessageToQueues(toNodeIds, ioBuffer);
++					}
++					break;
++				case SUBGRAPH_DATA:
++					ioBuffer = incomingBufferedDataMessage.getIoBuffer();
++					incomingMessageStorage.addMessageToSubgraphQueue(ioBuffer);
++					break;
++				case DATA:
++					if (!isNoParsing) {
++						timeBefore = System.currentTimeMillis();
++						ioBuffer = incomingBufferedDataMessage.getIoBuffer();
++						fromMachineId = incomingBufferedDataMessage.getFromMachineId();
++						int toNodeId;
++						while (ioBuffer.hasRemaining()) {
++							toNodeId = ioBuffer.getInt();
++							if (toNodeId >= 0) {
++								incomingMessageStorage.addMessageToQueue(toNodeId, ioBuffer);
++							} else {
++								incomingMessageStorage.addMessageToQueues(
++									outsidePartitionedVertices.get(toNodeId * -1), ioBuffer);
++							}
++						}
++						dataParserTimeSpentOnAddMessages[superstepNo] +=
++							(System.currentTimeMillis() - timeBefore);
++					}
++					break;
++				case LARGE_VERTEX_DATA:
++					logger.info("Parsing LARGE_VERTEX_DATA message...");
++					timeBefore = System.currentTimeMillis();
++					ioBuffer = incomingBufferedDataMessage.getIoBuffer();
++					fromMachineId = incomingBufferedDataMessage.getFromMachineId();
++					int fromNodeId;
++					while (ioBuffer.hasRemaining()) {
++						fromNodeId = ioBuffer.getInt();
++						incomingMessageStorage.addMessageToQueues(
++							outsidePartitionedVertices.get(fromNodeId), ioBuffer);
++					}
++					getMachineStats().updateStatForSuperstep(
++						StatName.DATA_PARSER_TIME_SPENT_ON_ADD_MESSAGE_TO_QUEUES, superstepNo,
++						(double) (System.currentTimeMillis() - timeBefore));
++					break;
++				case LARGE_VERTEX_PARTITIONS:
++					timeBefore = System.currentTimeMillis();
++					ioBuffer = incomingBufferedDataMessage.getIoBuffer();
++					fromMachineId = incomingBufferedDataMessage.getFromMachineId();
++					while (ioBuffer.hasRemaining()) {
++						int nodeId = ioBuffer.getInt();
++						ArrayList<Integer> neighbors = new ArrayList<Integer>();
++						int neighborIdSize = ioBuffer.getInt();
++						for (int i = 0; i < neighborIdSize; ++i) {
++							neighbors.add(ioBuffer.getInt());
++						}
++						logger.info("parsing large_vertex: " + nodeId);
++						outsidePartitionedVertices.put(nodeId, neighbors);
++					}
++					getMachineStats().updateStatForSuperstep(
++						StatName.DATA_PARSER_TIME_SPENT_ON_LARGE_VERTEX_DATA_MESSAGES, superstepNo,
++						(double) (System.currentTimeMillis() - timeBefore));
++					controlMessagesStats.addGlobalControlMessage(
++						ControlMessageType.RECEIVED_LARGE_VERTEX_PARTITIONING_MESSAGES,
++						fromMachineId);
++					break;
++				case INITIAL_VERTEX_PARTITIONING:
++					ioBuffer = incomingBufferedDataMessage.getIoBuffer();
++					MinaWritable tmpVertexValue = null;
++					while (ioBuffer.hasRemaining()) {
++						int vertexId = ioBuffer.getInt();
++						
++						if (representativeVertexValueClassForInputParsing != null) {
++							tmpVertexValue =
++								representativeVertexValueClassForInputParsing.newInstance();
++							tmpVertexValue.read(ioBuffer);
++						} else {
++							tmpVertexValue = representativeVertex.getInitialValue(vertexId);
++						}
++						int numNeighbors = ioBuffer.getInt();
++						graphPartition.put(vertexId, tmpVertexValue);
++						for (int i = 0; i < numNeighbors; ++i) {
++							if (!(representativeEdgeValue instanceof NullWritable)) {
++								graphPartition.addEdge(vertexId, ioBuffer.getInt(), ioBuffer);
++							} else {
++								graphPartition.addEdge(vertexId, ioBuffer.getInt());
++							}
++						}
++					}
++					break;
++				case INITIAL_DIRECTED_VERTEX_PARTITIONING:
++					ioBuffer = incomingBufferedDataMessage.getIoBuffer();
++					tmpVertexValue = null;
++					while (ioBuffer.hasRemaining()) {
++						int vertexId = ioBuffer.getInt();
++						
++						if (representativeVertexValueClassForInputParsing != null) {
++							tmpVertexValue =
++								representativeVertexValueClassForInputParsing.newInstance();
++							tmpVertexValue.read(ioBuffer);
++						} else {
++							tmpVertexValue = representativeVertex.getInitialValue(vertexId);
++						}
++						graphPartition.putDirected(vertexId, tmpVertexValue);
++						int numOutNeighbors = ioBuffer.getInt();
++						for (int i = 0; i < numOutNeighbors; ++i) {
++							if (!(representativeEdgeValue instanceof NullWritable)) {
++								graphPartition.addOutEdge(vertexId, ioBuffer.getInt(), ioBuffer);
++							} else {
++								graphPartition.addOutEdge(vertexId, ioBuffer.getInt());
++							}
++						}
++						int numInNeighbors = ioBuffer.getInt();
++						for (int i = 0; i < numInNeighbors; ++i) {
++							if (!(representativeEdgeValue instanceof NullWritable)) {
++								graphPartition.addInEdge(vertexId, ioBuffer.getInt(), ioBuffer);
++							} else {
++								graphPartition.addInEdge(vertexId, ioBuffer.getInt());
++							}
++						}
++					}
++					break;
++				case FINAL_DATA_SENT:
++					logger.debug("Incrementing SENT_FINAL_DATA message machineId: "
++						+ incomingBufferedDataMessage.getFromMachineId() + " superstepNo: "
++						+ superstepNo);
++					controlMessagesStats.addPerSuperstepControlMessage(superstepNo,
++						ControlMessageType.RECEIVED_FINAL_DATA_SENT_MESSAGES,
++						incomingBufferedDataMessage.getFromMachineId());
++					if (controlMessagesStats.hasReceivedAllPerSuperstepControlMessages(superstepNo,
++						ControlMessageType.RECEIVED_FINAL_DATA_SENT_MESSAGES,
++						getNumWorkers())) {
++						getMachineStats().updateStatForSuperstep(
++							StatName.DATA_PARSER_LAST_MESSAGE_PARSING_TIME, superstepNo,
++							(double) System.currentTimeMillis());
++					}
++					break;
++				case FINISHED_PARSING_DATA_MESSAGES:
++					controlMessagesStats.addPerSuperstepControlMessage(superstepNo,
++						ControlMessageType.RECEIVED_FINAL_INITIAL_VERTEX_PARTITIONING_MESSAGES,
++						incomingBufferedDataMessage.getFromMachineId());
++					break;
++				case FINAL_INITIAL_VERTEX_PARTITIONING_SENT:
++					controlMessagesStats.addGlobalControlMessage(
++						ControlMessageType.RECEIVED_FINAL_INITIAL_VERTEX_PARTITIONING_MESSAGES,
++						incomingBufferedDataMessage.getFromMachineId());
++					break;
++				default:
++					parseIncomingBufferedMessage(incomingBufferedDataMessage, type, superstepNo);
++				}
++			} catch (InterruptedException e) {
++				e.printStackTrace();
++			} catch (InstantiationException e) {
++				e.printStackTrace();
++			} catch (IllegalAccessException e) {
++				e.printStackTrace();
++			}
++		}
++	}
++	
++	public void setIncomingMessageStorage(ArrayBackedIncomingSubgraphMessageStorage<MW, SMW> incomingMessageStorage) {
++		this.incomingMessageStorage = incomingMessageStorage;
++	}
++
++	protected GlobalObjectsMap getLatestGlobalObjectsMap() {
++		return null;
++	}
++
++	protected void parseIncomingBufferedMessage(IncomingBufferedMessage incomingBufferedDataMessage,
++		MessageTypes type, int superstepNo) throws InstantiationException, IllegalAccessException {
++		// Nothing to do
++		logger.error("DataAndControlMessagesParser does not know how to parse a message of type: "
++			+ type);
++	}
++}
+\ No newline at end of file
+-- 
+2.2.2
+
