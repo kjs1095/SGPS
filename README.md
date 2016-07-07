@@ -63,11 +63,19 @@ $ sh start_gps_nodes.sh [num_of_workers] [job_name] "[job_config_arguments]"
 ```
 
 job arguments:
-  -ifs , -inputfiles
-  -mcfg , -machineconfigfile
-  -jc, -jobconfiguration
-  -log4jconf, -log4jconfig
-  -sub, -subgraph
-  -dir, -directed
-  -batch, -batchmode
-  -w, -window
+  -ifs FILEPATH:string, -inputfiles FILEPATH:string
+						File path of data graph on HDFS
+  -mcfg FILEPATH:string, -machineconfigfile FILEPATH:string
+						File path of machine configuration on HDFS 
+  -jc , -jobconfiguration
+						Job configuration class
+  -log4jconf FILEPATH:string, -log4jconfig FILEPATH:string
+						File path of log4j configuration
+  -sub boolean, -subgraph boolean
+						True for subgraph-centric, False for vertex-centric
+  -dir boolean, -directed boolean
+						True for directed graph, False for undirected graph
+  -batch boolean, -batchmode boolean
+						True for running batch algorithm at the beginning of each window, False for incremental algorithm
+  -w SECOND:int, -window SECOND:int
+						Window size in second
