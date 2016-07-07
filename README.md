@@ -62,6 +62,7 @@ $ cd trunk/master-scripts
 $ sh start_gps_nodes.sh [num_of_workers] [job_name] "[job_config_arguments]"
 ```
 
+```
 job arguments:
   -ifs FILEPATH:string, -inputfiles FILEPATH:string
 						File path of data graph on HDFS
@@ -79,3 +80,4 @@ job arguments:
 						True for running batch algorithm at the beginning of each window, False for incremental algorithm
   -w SECOND:int, -window SECOND:int
 						Window size in second
+```
